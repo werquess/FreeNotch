@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.0.1
+
+- Shelf: drag any file and the whole shelf gathers under the pointer as a pile. Hold ⌘ to drag just one.
+- Shelf: real previews for images and PDFs, folders in their Finder color, and a soft glow in each file's color
+- Shelf: right-click for Open, Show in Finder, AirDrop and Remove
+- Fixed the drop zone saying "0 files" when a file was already on the shelf
+- Fixed the notch background lagging behind the shape while opening
+- Smoother volume HUD icon, and the volume bar now uses your accent color
+- Demo GIFs in the README
+
 ## 1.0.0
 
 The first public release of FreeNotch.
