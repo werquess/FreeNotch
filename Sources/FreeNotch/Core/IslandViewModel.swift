@@ -98,10 +98,9 @@ struct HUDEvent: Equatable {
     var symbol: String {
         switch kind {
         case .volume:
-            if muted || level <= 0.001 { return "speaker.slash.fill" }
-            return level < 0.33 ? "speaker.wave.1.fill" : level < 0.66 ? "speaker.wave.2.fill" : "speaker.wave.3.fill"
+            return muted || level <= 0.001 ? "speaker.slash.fill" : "speaker.wave.3.fill"
         case .brightness:
-            return level < 0.5 ? "sun.min.fill" : "sun.max.fill"
+            return "sun.max.fill"
         case .keyboard:
             return "light.max"
         }
@@ -166,6 +165,7 @@ final class IslandViewModel {
 
     @ObservationIgnored var openSettings: (() -> Void)?
     @ObservationIgnored var onCollapse: (() -> Void)?
+    @ObservationIgnored var collapseBlocker: (() -> Bool)?
     @ObservationIgnored private let media: MediaController
     @ObservationIgnored private let pomodoro: PomodoroTimer
     @ObservationIgnored private let lyrics: LyricsService
@@ -278,7 +278,7 @@ final class IslandViewModel {
     func collapse() {
         hoverTask?.cancel()
         collapseTask?.cancel()
-        guard mode != .compact else { return }
+        guard mode != .compact, collapseBlocker?() != true else { return }
         mode = .compact
         onCollapse?()
     }

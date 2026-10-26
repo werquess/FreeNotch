@@ -93,6 +93,7 @@ final class AppEnvironment {
     }
 
     private func wire() {
+        island.collapseBlocker = { [weak self] in self?.shelf.isDraggingOut == true }
         island.onCollapse = { [weak self] in
             if Prefs.bool(.autoLockNotes) { self?.notes.lockAll() }
         }

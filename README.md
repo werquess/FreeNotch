@@ -28,6 +28,8 @@
 
 ## Why FreeNotch?
 
+<p align="center"><img src="Assets/demo/open.gif" alt="Opening FreeNotch" width="85%"></p>
+
 The notch is the most underused part of your screen. FreeNotch turns it into a small, smooth, Dynamic Island-style hub, without a subscription, without an account, and without draining your battery.
 
 - **Free and open source.** MIT licensed. No ads, no tracking, no accounts.
@@ -44,10 +46,16 @@ The notch is the most underused part of your screen. FreeNotch turns it into a s
 - A live equalizer and artwork in the closed notch, plus a short preview when the song changes.
 - **Synced lyrics** that scroll with the song. Click a line to jump to it. Optionally show the current line under the closed notch.
 
+<p align="center"><img src="Assets/demo/lyrics.gif" alt="Synced lyrics" width="80%"></p>
+
 ### 📥 Shelf and AirDrop
 - Start dragging a file anywhere and a **drop zone** slides out of the notch.
 - Drop files on the shelf to keep them handy, then drag them out wherever you need them.
 - Drop on **AirDrop** to send instantly.
+- Drag one file out and the whole shelf gathers under the pointer as a pile. Hold ⌘ to take just one.
+- Previews follow the file: image and PDF thumbnails, and folders in their real Finder color.
+
+<p align="center"><img src="Assets/demo/shelf.gif" alt="Drop zone and shelf" width="70%"></p>
 
 ### 📋 Clipboard history
 - Text, images and files you copy, searchable and one click away.
@@ -67,6 +75,9 @@ The notch is the most underused part of your screen. FreeNotch turns it into a s
 - Volume and brightness HUD in the notch. FreeNotch can **replace the macOS overlay** entirely.
 - CPU, memory, **temperature in °C** and **fan speed in RPM**.
 - A macOS-style battery indicator, charging and AirPods connection alerts.
+
+<p align="center"><img src="Assets/demo/hud.gif" alt="Volume HUD" width="80%"></p>
+<p align="center"><img src="Assets/demo/system.gif" alt="System stats" width="80%"></p>
 
 ### 🧰 Tools
 - **Mirror**: a quick camera preview, only running while visible.
