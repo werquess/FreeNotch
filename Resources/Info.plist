@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CFBundleAllowMixedLocalizations</key>
+	<true/>
+	<key>CFBundleDevelopmentRegion</key>
+	<string>en</string>
+	<key>CFBundleDisplayName</key>
+	<string>FreeNotch</string>
+	<key>CFBundleExecutable</key>
+	<string>FreeNotch</string>
+	<key>CFBundleIconFile</key>
+	<string>AppIcon</string>
+	<key>CFBundleIdentifier</key>
+	<string>io.github.werquess.FreeNotch</string>
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>tr</string>
+		<string>de</string>
+		<string>es</string>
+		<string>fr</string>
+	</array>
+	<key>CFBundleName</key>
+	<string>FreeNotch</string>
+	<key>CFBundlePackageType</key>
+	<string>APPL</string>
+	<key>CFBundleShortVersionString</key>
+	<string>1.0.0</string>
+	<key>CFBundleVersion</key>
+	<string>2</string>
+	<key>FNUpdateRepository</key>
+	<string>werquess/FreeNotch</string>
+	<key>LSApplicationCategoryType</key>
+	<string>public.app-category.utilities</string>
+	<key>LSMinimumSystemVersion</key>
+	<string>14.0</string>
+	<key>LSUIElement</key>
+	<true/>
+	<key>NSAppleEventsUsageDescription</key>
+	<string>FreeNotch shows and controls what is playing in Spotify, Music and your browser.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>FreeNotch shows when AirPods and headphones connect or disconnect.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>FreeNotch shows your upcoming calendar events in the notch.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>FreeNotch uses the camera for the Mirror tool. Nothing is recorded or stored.</string>
+	<key>NSHighResolutionCapable</key>
+	<true/>
+	<key>NSHumanReadableCopyright</key>
+	<string>© 2026 Oğuz Mete. MIT License.</string>
+	<key>NSSupportsAutomaticGraphicsSwitching</key>
+	<true/>
+</dict>
+</plist>

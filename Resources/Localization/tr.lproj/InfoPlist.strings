@@ -1,0 +1,4 @@
+"NSAppleEventsUsageDescription" = "FreeNotch, Spotify, Müzik ve tarayıcında çalanı göstermek ve kontrol etmek için bu izni kullanır.";
+"NSCameraUsageDescription" = "FreeNotch, Ayna aracı için kamerayı kullanır. Hiçbir şey kaydedilmez veya saklanmaz.";
+"NSCalendarsFullAccessUsageDescription" = "FreeNotch, yaklaşan takvim etkinliklerini çentikte gösterir.";
+"NSBluetoothAlwaysUsageDescription" = "FreeNotch, AirPods ve kulaklıkların bağlandığını veya ayrıldığını gösterir.";

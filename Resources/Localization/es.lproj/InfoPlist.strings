@@ -1,0 +1,4 @@
+"NSAppleEventsUsageDescription" = "FreeNotch muestra y controla lo que suena en Spotify, Música y tu navegador.";
+"NSCameraUsageDescription" = "FreeNotch usa la cámara para la herramienta Espejo. No se graba ni se guarda nada.";
+"NSCalendarsFullAccessUsageDescription" = "FreeNotch muestra tus próximos eventos del calendario en el notch.";
+"NSBluetoothAlwaysUsageDescription" = "FreeNotch muestra cuándo se conectan o desconectan tus AirPods y auriculares.";
