@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.2
+
+- New "Buy Me a Coffee" button in Settings › About to support FreeNotch's development
+- GitHub Sponsor button and support section in the README
+
 ## 1.0.1
 
 - Shelf: drag any file and the whole shelf gathers under the pointer as a pile. Hold ⌘ to drag just one.
