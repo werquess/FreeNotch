@@ -11,6 +11,7 @@
 
 <p align="center">
   <a href="https://github.com/werquess/FreeNotch/releases/latest/download/FreeNotch.dmg"><img src="https://img.shields.io/badge/Download-FreeNotch.dmg-ff4d8d?style=for-the-badge&logo=apple&logoColor=white" alt="Download FreeNotch"></a>
+  <a href="https://buymeacoffee.com/werquess"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-support-ffdd00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
 </p>
 
 <p align="center">
@@ -162,6 +163,14 @@ gh release create v1.1.0 dist/FreeNotch.dmg dist/FreeNotch.zip --title "FreeNotc
 ```
 
 `FreeNotch.dmg` is what people download, and `FreeNotch.zip` is what the built-in updater installs. Both need to be attached to every release.
+
+## Support FreeNotch
+
+FreeNotch is free and always will be. If it makes your Mac a little nicer, you can support its development:
+
+<a href="https://buymeacoffee.com/werquess"><img src="https://img.shields.io/badge/Buy%20me%20a%20coffee-werquess-ffdd00?style=for-the-badge&logo=buymeacoffee&logoColor=black" alt="Buy me a coffee"></a>
+
+Starring the repo and telling a friend helps a lot too. ⭐
 
 ## Contributing
 

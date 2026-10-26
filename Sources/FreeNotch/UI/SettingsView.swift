@@ -818,6 +818,16 @@ private struct AboutPane: View {
                         Link("GitHub", destination: URL(string: "https://github.com/werquess/FreeNotch")!)
                         Link("Report an Issue", destination: URL(string: "https://github.com/werquess/FreeNotch/issues")!)
                     }
+                    Link(destination: URL(string: "https://buymeacoffee.com/werquess")!) {
+                        Label("Buy Me a Coffee", systemImage: "cup.and.saucer.fill")
+                            .font(.callout.weight(.semibold))
+                            .foregroundStyle(.black)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 7)
+                            .background(Capsule().fill(Color(red: 1, green: 0.87, blue: 0)))
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.top, 4)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 8)
