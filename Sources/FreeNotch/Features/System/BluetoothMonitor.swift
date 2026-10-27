@@ -9,9 +9,15 @@ final class BluetoothMonitor: NSObject {
     private var startDate = Date()
 
     func start() {
+        guard connectNotification == nil else { return }
         startDate = .now
         connectNotification = IOBluetoothDevice.register(
             forConnectNotifications: self, selector: #selector(deviceConnected(_:device:)))
+    }
+
+    func stop() {
+        connectNotification?.unregister()
+        connectNotification = nil
     }
 
     @objc private func deviceConnected(_ note: IOBluetoothUserNotification, device: IOBluetoothDevice) {

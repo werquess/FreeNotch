@@ -35,7 +35,7 @@ final class AppEnvironment {
         clipboard.start()
         system.start()
         volume.start()
-        bluetooth.start()
+        if Prefs.bool(.activityBluetooth) { bluetooth.start() }
         updater.start()
 
         keyMonitor.start()
@@ -63,6 +63,7 @@ final class AppEnvironment {
     }
 
     private func preferencesChanged() {
+        if Prefs.bool(.activityBluetooth) { bluetooth.start() } else { bluetooth.stop() }
         let replace = Prefs.bool(.replaceSystemHUD)
         guard replace != replaceHUDSetting else { return }
         replaceHUDSetting = replace

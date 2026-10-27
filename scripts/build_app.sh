@@ -19,7 +19,14 @@ for lproj in "$ROOT"/Resources/Localization/*.lproj(N); do
     cp -R "$lproj" "$APP/Contents/Resources/"
 done
 
-codesign --force --sign "${CODESIGN_IDENTITY:--}" --timestamp=none "$APP"
+IDENTITY="${CODESIGN_IDENTITY:--}"
+if [[ "$IDENTITY" == "-" ]]; then
+    BUNDLE_ID="$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Contents/Info.plist")"
+    codesign --force --sign - --timestamp=none \
+        --requirements "=designated => identifier \"$BUNDLE_ID\"" "$APP"
+else
+    codesign --force --sign "$IDENTITY" --timestamp=none "$APP"
+fi
 echo "Built $APP"
 
 if [[ "${1:-}" == "--run" ]]; then

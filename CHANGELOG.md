@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.4
+
+- Permissions now stick: macOS no longer asks again for Bluetooth, Accessibility and media control after every launch or update. After installing this version, grant them one last time.
+- Bluetooth access is only requested when the AirPods and headphones notification is turned on
+
 ## 1.0.3
 
 - Fixed the play/pause button flipping back and forth after a click
