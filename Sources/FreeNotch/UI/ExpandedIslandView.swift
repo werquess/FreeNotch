@@ -11,7 +11,6 @@ struct ExpandedIslandView: View {
     @Environment(UpdateChecker.self) private var updater
     @Namespace private var tabNS
     @State private var dropTargeted = false
-    @State private var draggingTab: IslandTab?
 
     var body: some View {
         VStack(spacing: 6) {
@@ -95,7 +94,6 @@ struct ExpandedIslandView: View {
                     }
                 }
                 .contentShape(Capsule())
-                .opacity(draggingTab == tab ? 0.4 : 1)
         }
         .buttonStyle(.plain)
         .help(tab.title)
@@ -105,10 +103,8 @@ struct ExpandedIslandView: View {
                 .foregroundStyle(appearance.onAccent)
                 .frame(width: 30, height: 24)
                 .background(Capsule().fill(appearance.accent))
-                .onAppear { draggingTab = tab }
         }
         .dropDestination(for: String.self) { items, _ in
-            draggingTab = nil
             guard let raw = items.first, let moved = IslandTab(rawValue: raw), moved != tab else { return false }
             withAnimation(Motion.tab) { Prefs.moveTab(moved, before: tab) }
             return true

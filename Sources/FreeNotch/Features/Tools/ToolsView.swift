@@ -21,7 +21,7 @@ struct ToolsView: View {
                 grid
             }
         }
-        .animation(Motion.tab, value: openTool)
+        .animation(.smooth(duration: 0.22), value: openTool)
     }
 
     private var grid: some View {
@@ -43,7 +43,7 @@ struct ToolsView: View {
             .buttonStyle(.plain)
             content()
         }
-        .transition(.opacity.combined(with: .scale(scale: 0.97)))
+        .transition(.opacity)
     }
 }
 
@@ -86,16 +86,20 @@ struct ToolTile<Accessory: View>: View {
                 .multilineTextAlignment(.center)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .islandCard(highlighted: hovering)
+            .islandCard()
             .overlay {
-                if isOn {
-                    RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
-                        .strokeBorder(tint.opacity(0.55), lineWidth: 1)
-                }
+                RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                    .fill(tint.opacity(hovering ? 0.07 : 0))
+                    .allowsHitTesting(false)
             }
-            .scaleEffect(hovering ? 1.015 : 1)
-            .animation(.spring(response: 0.25, dampingFraction: 0.75), value: hovering)
-            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isOn)
+            .overlay {
+                RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
+                    .strokeBorder(tint.opacity(isOn ? 0.55 : (hovering ? 0.22 : 0)), lineWidth: 1)
+                    .allowsHitTesting(false)
+            }
+            .contentShape(RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous))
+            .animation(.easeOut(duration: 0.18), value: hovering)
+            .animation(.smooth(duration: 0.25), value: isOn)
         }
         .buttonStyle(.plain)
         .onHover { hovering = $0 }

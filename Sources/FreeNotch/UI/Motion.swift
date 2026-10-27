@@ -48,10 +48,9 @@ extension AnyTransition {
 
     static var tabContent: AnyTransition {
         .asymmetric(
-            insertion: .modifier(active: BlurOpacity(radius: 6, opacity: 0, scale: 0.985),
-                                 identity: BlurOpacity(radius: 0, opacity: 1, scale: 1))
-                .animation(Motion.tab.delay(0.03)),
-            removal: .opacity.animation(.easeOut(duration: 0.1))
+            insertion: .opacity.combined(with: .offset(y: 4))
+                .animation(.smooth(duration: 0.22).delay(0.06)),
+            removal: .opacity.animation(.easeOut(duration: 0.08))
         )
     }
 

@@ -19,6 +19,7 @@ final class MediaController {
     @ObservationIgnored private var scansInFlight: Set<BrowserApp> = []
     @ObservationIgnored private var knownBrowserTabs: Set<String> = []
     @ObservationIgnored private var artworkCache: [String: NSImage] = [:]
+    @ObservationIgnored private var expectedPlaying: [String: (playing: Bool, until: Date)] = [:]
 
     @ObservationIgnored private var blockedBrowsers: [BrowserApp: Date] = [:]
 
@@ -90,6 +91,7 @@ final class MediaController {
             $0.anchorPosition = $0.position(at: .now)
             $0.anchorDate = .now
             $0.isPlaying.toggle()
+            expectedPlaying[$0.id] = ($0.isPlaying, Date.now.addingTimeInterval(2))
         }
         switch s.kind {
         case .spotify, .music: native(s.kind, "playpause")
@@ -165,13 +167,13 @@ final class MediaController {
         let durationMs = (info["Duration"] as? NSNumber)?.doubleValue
             ?? (info["Total Time"] as? NSNumber)?.doubleValue ?? 0
         let trackID = (info["Track ID"] as? String)
-            ?? (info["PersistentID"] as? NSNumber).map { "\($0)" }
+            ?? (info["PersistentID"] as? NSNumber).map { String(format: "%016llX", UInt64(bitPattern: $0.int64Value)) }
             ?? "\(title)|\(artist)"
         let position = (info["Playback Position"] as? NSNumber)?.doubleValue
 
         upsert(id: id, kind: kind, trackID: trackID, title: title, artist: artist,
                album: info["Album"] as? String ?? "", duration: durationMs / 1000,
-               playing: state == "playing", position: position)
+               playing: state == "playing", position: position, authoritative: true)
         if position == nil { refreshNativeState(kind) }
     }
 
@@ -198,7 +200,7 @@ final class MediaController {
             if state == "stopped" { self.removeSession(kind.bundleID); return }
             guard v.count >= 7 else { return }
             self.upsert(id: kind.bundleID, kind: kind,
-                        trackID: v[6].string ?? "\(v[1].string ?? "")|\(v[2].string ?? "")",
+                        trackID: (kind == .spotify ? v[6].string : v[6].string?.uppercased()) ?? "\(v[1].string ?? "")|\(v[2].string ?? "")",
                         title: v[1].string ?? "", artist: v[2].string ?? "", album: v[3].string ?? "",
                         duration: v[4].number ?? 0, playing: state == "playing", position: v[5].number)
         }
@@ -341,7 +343,17 @@ final class MediaController {
 
     private func upsert(id: String, kind: MediaKind, trackID: String, title: String, artist: String, album: String,
                         duration: TimeInterval, playing: Bool, position: TimeInterval?,
-                        artworkURL: String? = nil, pageURL: String? = nil) {
+                        artworkURL: String? = nil, pageURL: String? = nil, authoritative: Bool = false) {
+        var playing = playing
+        var position = position
+        if let expected = expectedPlaying[id] {
+            if expected.until < .now || authoritative {
+                expectedPlaying[id] = nil
+            } else if expected.playing != playing {
+                playing = expected.playing
+                position = nil
+            }
+        }
         if let i = sessions.firstIndex(where: { $0.id == id }) {
             var s = sessions[i]
             let trackChanged = s.trackID != trackID
@@ -360,9 +372,15 @@ final class MediaController {
                 s.anchorPosition = 0
                 s.anchorDate = .now
             }
-            if trackChanged { s.artwork = nil }
             if s != sessions[i] { sessions[i] = s }
-            if trackChanged { loadArtwork(for: s, url: artworkURL) }
+            if trackChanged {
+                loadArtwork(for: s, url: artworkURL)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) { [weak self] in
+                    self?.mutate(id) {
+                        if $0.trackID == trackID, $0.artworkTrackID != trackID { $0.artwork = nil }
+                    }
+                }
+            }
             if startedPlaying { selectedID = id }
             if trackChanged, playing { onTrackChange?(s) }
             if trackChanged || startedPlaying { reschedulePolling() }
@@ -395,10 +413,7 @@ final class MediaController {
         let trackID = s.trackID
         switch s.kind {
         case .spotify:
-            AppleScriptRunner.run("tell application \"Spotify\" to return artwork url of current track") { [weak self] v in
-                guard let u = v.first?.string else { return }
-                self?.fetchArtwork(u, id: id, trackID: trackID)
-            }
+            loadSpotifyArtwork(id: id, trackID: trackID, retries: 3)
         case .music:
             let script = """
             tell application "Music"
@@ -418,9 +433,29 @@ final class MediaController {
         }
     }
 
+    private func loadSpotifyArtwork(id: String, trackID: String, retries: Int) {
+        let script = "tell application \"Spotify\" to return {id of current track, artwork url of current track}"
+        AppleScriptRunner.run(script) { [weak self] v in
+            guard let self, self.sessions.contains(where: { $0.id == id && $0.trackID == trackID }) else { return }
+            guard v.count >= 2, v[0].string == trackID, let url = v[1].string else {
+                guard retries > 0 else { return }
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    self.loadSpotifyArtwork(id: id, trackID: trackID, retries: retries - 1)
+                }
+                return
+            }
+            self.fetchArtwork(url, id: id, trackID: trackID)
+        }
+    }
+
     private func fetchArtwork(_ urlString: String, id: String, trackID: String) {
         if let cached = artworkCache[urlString] {
-            mutate(id) { if $0.trackID == trackID { $0.artwork = cached } }
+            mutate(id) {
+                if $0.trackID == trackID {
+                    $0.artwork = cached
+                    $0.artworkTrackID = trackID
+                }
+            }
             return
         }
         guard let url = URL(string: urlString), url.scheme?.hasPrefix("http") == true else { return }
@@ -436,7 +471,12 @@ final class MediaController {
             if artworkCache.count > 40 { artworkCache.removeAll() }
             artworkCache[cacheKey] = image
         }
-        mutate(id) { if $0.trackID == trackID { $0.artwork = image } }
+        mutate(id) {
+            if $0.trackID == trackID {
+                $0.artwork = image
+                $0.artworkTrackID = trackID
+            }
+        }
         Task { [weak self] in
             let rgb = await Task.detached(priority: .utility) { ColorExtractor.averageRGB(from: data) }.value
             guard let self, let rgb else { return }

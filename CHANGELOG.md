@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.0.3
+
+- Fixed the play/pause button flipping back and forth after a click
+- Fixed album art flashing a placeholder when a song starts, and Spotify sometimes showing the previous song's cover
+- Fixed Apple Music songs being detected as changed twice, which showed the song preview twice
+- The song preview and the playing view in the closed notch now blend into each other smoothly
+- Album art crossfades when the track changes
+- Tools: softer hover highlight in each tool's color instead of a white flash
+- Lighter, smoother tab transitions
+- Fixed a tab staying dimmed after a cancelled drag
+
 ## 1.0.2
 
 - New "Buy Me a Coffee" button in Settings › About to support FreeNotch's development

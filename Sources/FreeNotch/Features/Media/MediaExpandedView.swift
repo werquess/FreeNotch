@@ -113,7 +113,7 @@ struct MediaExpandedView: View {
             Button { media.playPause(s) } label: {
                 Image(systemName: s.isPlaying ? "pause.fill" : "play.fill")
                     .font(.system(size: 24))
-                    .contentTransition(.symbolEffect(.replace.downUp))
+                    .contentTransition(.symbolEffect(.replace))
             }
             .buttonStyle(IslandButtonStyle(size: 42))
 

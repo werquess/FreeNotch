@@ -4,7 +4,6 @@ struct CompactActivityView: View {
     let activity: LiveActivity
     let notchWidth: CGFloat
     let notchHeight: CGFloat
-    let ns: Namespace.ID
 
     @Environment(MediaController.self) private var media
     @Environment(PomodoroTimer.self) private var pomodoro
@@ -27,6 +26,7 @@ struct CompactActivityView: View {
 
             if activity == .trackPeek {
                 peekDetails
+                    .transition(.opacity.combined(with: .offset(y: -4)))
             } else if activity == .media, vm.showsLyricLine, let session = media.playing {
                 CompactLyricLine(session: session)
                     .frame(height: 22)
@@ -40,7 +40,6 @@ struct CompactActivityView: View {
         switch activity {
         case .media, .trackPeek:
             ArtworkView(image: media.playing?.artwork ?? media.current?.artwork, size: activity == .trackPeek ? 24 : 22, corner: 6)
-                .matchedGeometryEffect(id: "artwork", in: ns)
         case .timer:
             Label {
                 Text(pomodoro.phase.shortTitle)
@@ -213,14 +212,20 @@ struct ArtworkView: View {
                     .resizable()
                     .interpolation(.high)
                     .aspectRatio(contentMode: .fill)
+                    .id(ObjectIdentifier(image))
+                    .transition(.opacity)
             } else {
-                LinearGradient(colors: [.gray.opacity(0.5), .gray.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
-                Image(systemName: "music.note")
-                    .font(.system(size: size * 0.42, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.7))
+                ZStack {
+                    LinearGradient(colors: [.gray.opacity(0.5), .gray.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                    Image(systemName: "music.note")
+                        .font(.system(size: size * 0.42, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.7))
+                }
+                .transition(.opacity)
             }
         }
         .frame(width: size, height: size)
+        .animation(.easeInOut(duration: 0.3), value: image.map(ObjectIdentifier.init))
         .clipShape(RoundedRectangle(cornerRadius: corner, style: .continuous))
     }
 }

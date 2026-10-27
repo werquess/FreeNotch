@@ -87,6 +87,10 @@ enum LiveActivity: Equatable {
         case .updateAvailable: "update"
         }
     }
+
+    var contentKey: String {
+        self == .trackPeek ? LiveActivity.media.key : key
+    }
 }
 
 struct HUDEvent: Equatable {

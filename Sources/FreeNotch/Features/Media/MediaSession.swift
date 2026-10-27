@@ -78,6 +78,7 @@ struct MediaSession: Identifiable, Equatable {
     var anchorPosition: TimeInterval
     var anchorDate: Date
     var artwork: NSImage?
+    var artworkTrackID: String?
     var accent: NSColor = .white
     var pageURL: String?
 

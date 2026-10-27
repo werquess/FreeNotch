@@ -67,9 +67,9 @@ struct IslandRootView: View {
         case .idle:
             Color.clear
         case .activity(let activity):
-            CompactActivityView(activity: activity, notchWidth: vm.metrics.width, notchHeight: vm.metrics.height, ns: ns)
+            CompactActivityView(activity: activity, notchWidth: vm.metrics.width, notchHeight: vm.metrics.height)
                 .transition(.islandContent)
-                .id(activity.key)
+                .id(activity.contentKey)
         case .hud(let event):
             HUDView(event: event, notchWidth: vm.metrics.width, notchHeight: vm.metrics.height)
                 .transition(.islandContent)
