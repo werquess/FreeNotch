@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.6
+
+- Browser media stays out of the closed notch while you are watching it. It shows up as soon as you switch to another tab or app.
+- Much lower idle energy use: browsers are only checked for media while your Mac is playing sound or the media panel is open
+- Browser media is picked up right away when playback starts, even after enabling JavaScript from Apple Events
+- Fixed the battery icon showing "1…" instead of 100 while charging
+
 ## 1.0.5
 
 - Redesigned media player: larger artwork that fills the notch, a soft glow in the album's color, inline progress bar with times, album name and a bold play button

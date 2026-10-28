@@ -212,7 +212,7 @@ final class IslandViewModel {
         if let transient { return .activity(transient) }
         if pomodoro.isRunning, Prefs.bool(.activityTimer) { return .activity(.timer) }
         if stopwatch.isRunning, Prefs.bool(.activityStopwatch) { return .activity(.stopwatch) }
-        if media.isPlaying, Prefs.bool(.activityMedia) { return .activity(.media) }
+        if media.isPlayingOutOfView, Prefs.bool(.activityMedia) { return .activity(.media) }
         return .idle
     }
 

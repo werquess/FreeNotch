@@ -172,11 +172,16 @@ struct MacBatteryIcon: View {
                 if showsPercent {
                     HStack(spacing: 0) {
                         if charging {
-                            Image(systemName: "bolt.fill").font(.system(size: height * 0.62, weight: .heavy))
+                            Image(systemName: "bolt.fill")
+                                .font(.system(size: height * (level >= 100 ? 0.5 : 0.62), weight: .heavy))
                         }
                         Text(verbatim: "\(level)")
-                            .font(.system(size: height * 0.74, weight: .bold, design: .rounded).monospacedDigit())
+                            .font(.system(size: height * (level >= 100 ? 0.64 : 0.74), weight: .bold, design: .rounded).monospacedDigit())
+                            .tracking(level >= 100 ? -0.3 : 0)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.5)
                     }
+                    .padding(.horizontal, height * 0.08)
                     .blendMode(.destinationOut)
                 }
             }

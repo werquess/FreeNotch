@@ -19,6 +19,7 @@ final class MediaController {
     @ObservationIgnored private var scansInFlight: Set<BrowserApp> = []
     @ObservationIgnored private var knownBrowserTabs: Set<String> = []
     @ObservationIgnored private var artworkCache: [String: NSImage] = [:]
+    @ObservationIgnored private let audio = AudioActivityMonitor()
     @ObservationIgnored private var expectedPlaying: [String: (playing: Bool, until: Date)] = [:]
 
     @ObservationIgnored private var blockedBrowsers: [BrowserApp: Date] = [:]
@@ -35,6 +36,8 @@ final class MediaController {
 
     var isPlaying: Bool { sessions.contains(where: \.isPlaying) }
 
+    var isPlayingOutOfView: Bool { sessions.contains { $0.isPlaying && !$0.isInView } }
+
     func start() {
         let center = DistributedNotificationCenter.default()
         let natives: [(String, MediaKind)] = [
@@ -50,6 +53,11 @@ final class MediaController {
         }
 
         let ws = NSWorkspace.shared.notificationCenter
+        let activation = ws.addObserver(forName: NSWorkspace.didActivateApplicationNotification, object: nil, queue: .main) { [weak self] note in
+            let bundle = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier
+            MainActor.assumeIsolated { self?.appActivated(bundle) }
+        }
+        observers.append(activation)
         for name in [NSWorkspace.didLaunchApplicationNotification, NSWorkspace.didTerminateApplicationNotification] {
             let token = ws.addObserver(forName: name, object: nil, queue: .main) { [weak self] note in
                 let bundle = (note.userInfo?[NSWorkspace.applicationUserInfoKey] as? NSRunningApplication)?.bundleIdentifier
@@ -64,9 +72,34 @@ final class MediaController {
         }
         observers.append(prefs)
 
+        audio.onChange = { [weak self] _ in self?.audioActivityChanged() }
+        audio.start()
+
         refreshNativeStates()
         reschedulePolling()
         if Prefs.bool(.sourceBrowsers) { scanBrowsers() }
+    }
+
+    private func appActivated(_ bundle: String?) {
+        for s in sessions where s.isInView && s.kind.bundleID != bundle {
+            mutate(s.id) { $0.isInView = false }
+        }
+        guard let bundle, BrowserApp(rawValue: bundle) != nil,
+              sessions.contains(where: { $0.kind.bundleID == bundle }) else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.scanBrowsers() }
+    }
+
+    private func audioActivityChanged() {
+        if Prefs.bool(.sourceBrowsers) {
+            scanBrowsers(force: audio.isActive)
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) { [weak self] in self?.scanBrowsers() }
+        }
+        reschedulePolling()
+    }
+
+    private var browsersNeedPolling: Bool {
+        guard Prefs.bool(.sourceBrowsers) else { return false }
+        return audio.isActive || liveSyncClients > 0 || sessions.contains { !$0.kind.isNative && $0.isPlaying }
     }
 
     func beginLiveSync() {
@@ -221,6 +254,7 @@ final class MediaController {
     }
 
     private func applyScan(_ app: BrowserApp, values: [String], error: String?) {
+        let frontmost = NSWorkspace.shared.frontmostApplication?.bundleIdentifier
         var seen: Set<String> = []
         var jsBlocked = false
         if let error, error.localizedCaseInsensitiveContains("javascript") { jsBlocked = true }
@@ -250,7 +284,7 @@ final class MediaController {
                    artist: artist, album: obj["al"] as? String ?? "",
                    duration: obj["d"] as? Double ?? 0, playing: playing,
                    position: obj["c"] as? Double, artworkURL: artURL.isEmpty ? Self.youtubeThumb(page) : artURL,
-                   pageURL: page)
+                   pageURL: page, inView: (obj["f"] as? Bool ?? false) && frontmost == app.rawValue)
         }
 
         if jsBlocked, seen.isEmpty {
@@ -284,7 +318,7 @@ final class MediaController {
     }
 
     private func reschedulePolling() {
-        let browsers = Prefs.bool(.sourceBrowsers) && BrowserApp.allCases.contains { $0.isRunning && blockedBrowsers[$0] == nil }
+        let browsers = browsersNeedPolling && BrowserApp.allCases.contains { $0.isRunning && blockedBrowsers[$0] == nil }
         let lyricSync = Prefs.bool(.lyricsEnabled) && Prefs.bool(.lyricsInCompact)
             && sessions.contains { $0.kind.isNative && $0.isPlaying }
 
@@ -314,7 +348,7 @@ final class MediaController {
     }
 
     private func tick() {
-        if Prefs.bool(.sourceBrowsers) { scanBrowsers() }
+        if browsersNeedPolling { scanBrowsers() }
         let lyricSync = Prefs.bool(.lyricsEnabled) && Prefs.bool(.lyricsInCompact)
         if liveSyncClients > 0 || lyricSync {
             for s in sessions where s.kind.isNative && (s.isPlaying || liveSyncClients > 0) {
@@ -343,7 +377,8 @@ final class MediaController {
 
     private func upsert(id: String, kind: MediaKind, trackID: String, title: String, artist: String, album: String,
                         duration: TimeInterval, playing: Bool, position: TimeInterval?,
-                        artworkURL: String? = nil, pageURL: String? = nil, authoritative: Bool = false) {
+                        artworkURL: String? = nil, pageURL: String? = nil, inView: Bool = false,
+                        authoritative: Bool = false) {
         var playing = playing
         var position = position
         if let expected = expectedPlaying[id] {
@@ -365,6 +400,7 @@ final class MediaController {
             s.duration = duration
             s.isPlaying = playing
             s.pageURL = pageURL ?? s.pageURL
+            s.isInView = inView
             if let position {
                 s.anchorPosition = position
                 s.anchorDate = .now
@@ -385,9 +421,10 @@ final class MediaController {
             if trackChanged, playing { onTrackChange?(s) }
             if trackChanged || startedPlaying { reschedulePolling() }
         } else {
-            let s = MediaSession(id: id, kind: kind, trackID: trackID, title: title, artist: artist, album: album,
+            var s = MediaSession(id: id, kind: kind, trackID: trackID, title: title, artist: artist, album: album,
                                  duration: duration, isPlaying: playing, anchorPosition: position ?? 0,
                                  anchorDate: .now, pageURL: pageURL)
+            s.isInView = inView
             sessions.append(s)
             loadArtwork(for: s, url: artworkURL)
             if playing {

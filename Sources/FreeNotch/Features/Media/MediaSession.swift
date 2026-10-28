@@ -81,6 +81,7 @@ struct MediaSession: Identifiable, Equatable {
     var artworkTrackID: String?
     var accent: NSColor = .white
     var pageURL: String?
+    var isInView = false
 
     private nonisolated(unsafe) static let iconCache = NSCache<NSString, NSImage>()
 
@@ -114,5 +115,6 @@ struct MediaSession: Identifiable, Equatable {
         a.id == b.id && a.trackID == b.trackID && a.title == b.title && a.artist == b.artist
             && a.duration == b.duration && a.isPlaying == b.isPlaying && a.anchorPosition == b.anchorPosition
             && a.anchorDate == b.anchorDate && a.artwork === b.artwork && a.accent == b.accent
+            && a.isInView == b.isInView
     }
 }

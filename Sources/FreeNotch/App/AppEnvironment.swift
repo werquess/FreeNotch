@@ -127,7 +127,7 @@ final class AppEnvironment {
         media.onTrackChange = { [weak self] session in
             guard let self else { return }
             if Prefs.bool(.lyricsEnabled), Prefs.bool(.lyricsInCompact) { self.lyrics.ensure(for: session) }
-            guard Prefs.bool(.trackPeek), Prefs.bool(.activityMedia) else { return }
+            guard Prefs.bool(.trackPeek), Prefs.bool(.activityMedia), !session.isInView else { return }
             self.island.showTransient(.trackPeek, duration: 2.8)
         }
     }

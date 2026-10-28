@@ -12,11 +12,12 @@ enum BrowserScripts {
     (function(){var ms=Array.prototype.slice.call(document.querySelectorAll('video,audio')).filter(function(e){return e.duration>0||e.currentTime>0});\
     var md=navigator.mediaSession&&navigator.mediaSession.metadata;\
     var art='';if(md&&md.artwork&&md.artwork.length){art=md.artwork[md.artwork.length-1].src}\
+    var fv=document.visibilityState==='visible'&&document.hasFocus();\
     if(!ms.length){if(!md)return '';var st=navigator.mediaSession.playbackState;\
-    return JSON.stringify({t:md.title||document.title,a:md.artist||'',al:md.album||'',d:0,c:0,p:st==='playing',art:art,u:location.href})}\
+    return JSON.stringify({t:md.title||document.title,a:md.artist||'',al:md.album||'',d:0,c:0,p:st==='playing',art:art,u:location.href,f:fv})}\
     var m=ms.filter(function(e){return !e.paused})[0]||ms[0];\
     return JSON.stringify({t:(md&&md.title)||document.title,a:(md&&md.artist)||location.hostname.replace('www.',''),al:(md&&md.album)||'',\
-    d:isFinite(m.duration)?m.duration:0,c:m.currentTime,p:!m.paused,art:art,u:location.href})})()
+    d:isFinite(m.duration)?m.duration:0,c:m.currentTime,p:!m.paused,art:art,u:location.href,f:fv})})()
     """
 
     static let toggle = """
