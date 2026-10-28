@@ -251,7 +251,6 @@
 "Title" = "Başlık";
 "Today" = "Bugün";
 "Tools" = "Araçlar";
-"Translucent glass that refracts what is behind it." = "Arkasındakini kıran yarı saydam cam.";
 "Turn Off" = "Kapat";
 "Unknown" = "Bilinmeyen";
 "Unlock" = "Kilidi Aç";
@@ -278,3 +277,4 @@
 "Your notes, clipboard history and shelf are kept." = "Notların, pano geçmişin ve rafın korunur.";
 "Drag to move all · ⌘ for one" = "Hepsini taşımak için sürükle · tek dosya için ⌘";
 "Buy Me a Coffee" = "Bana bir kahve ısmarla";
+"Real macOS glass that follows the Liquid Glass setting in System Settings." = "Sistem Ayarları’ndaki Liquid Glass ayarını izleyen gerçek macOS camı.";

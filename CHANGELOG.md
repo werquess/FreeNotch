@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.7
+
+- Liquid Glass theme rebuilt on real macOS glass. It follows the Liquid Glass setting in System Settings › Appearance and updates live when you move the slider.
+- Glass edge highlights on the notch and cards, and a glass tab indicator tinted with your accent color
+- Fixed the glass and frosted themes popping in as a rectangle while the notch opens and closes. The glass now grows and shrinks with the notch.
+- The AirDrop button on the shelf now matches the theme instead of staying black
+
 ## 1.0.6
 
 - Browser media stays out of the closed notch while you are watching it. It shows up as soon as you switch to another tab or app.

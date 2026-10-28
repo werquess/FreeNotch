@@ -88,8 +88,7 @@ struct ExpandedIslandView: View {
                 .frame(width: 26, height: 22)
                 .background {
                     if selected {
-                        Capsule()
-                            .fill(appearance.accent)
+                        TabSelectionCapsule(accent: appearance.accent, glass: appearance.theme == .liquidGlass)
                             .matchedGeometryEffect(id: "tabSelection", in: tabNS)
                     }
                 }
@@ -137,5 +136,20 @@ struct ExpandedIslandView: View {
         }
         .id(vm.selectedTab)
         .transition(.tabContent)
+    }
+}
+
+private struct TabSelectionCapsule: View {
+    let accent: Color
+    let glass: Bool
+
+    var body: some View {
+        if glass, #available(macOS 26.0, *) {
+            Capsule()
+                .fill(accent.opacity(0.55))
+                .glassEffect(.regular.tint(accent.opacity(0.6)), in: Capsule())
+        } else {
+            Capsule().fill(accent)
+        }
     }
 }

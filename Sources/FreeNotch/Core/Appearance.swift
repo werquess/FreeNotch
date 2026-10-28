@@ -20,7 +20,7 @@ enum IslandTheme: String, CaseIterable, Identifiable {
         switch self {
         case .oled: "Pure black. Pixels stay off on the notch, lowest power."
         case .graphite: "Soft dark grey surfaces with gentle contrast."
-        case .liquidGlass: "Translucent glass that refracts what is behind it."
+        case .liquidGlass: "Real macOS glass that follows the Liquid Glass setting in System Settings."
         case .frosted: "Blurred, frosted material in classic macOS style."
         }
     }
@@ -82,8 +82,15 @@ final class Appearance {
     private(set) var accent: Color = .white
     private(set) var onAccent: Color = .black
     private(set) var accentNS: NSColor = .white
+    private(set) var glassTint: Double = Appearance.systemGlassTint
 
     @ObservationIgnored private var observers: [NSObjectProtocol] = []
+    @ObservationIgnored private var glassObserver: NSKeyValueObservation?
+
+    static var systemGlassTint: Double {
+        let value = UserDefaults.standard.object(forKey: "NSGlassTintAmount") as? Double ?? 0.35
+        return min(max(value, 0), 1)
+    }
 
     init() {
         reload()
@@ -96,9 +103,20 @@ final class Appearance {
         observers.append(DistributedNotificationCenter.default().addObserver(forName: .init("AppleColorPreferencesChangedNotification"), object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.reload() }
         })
+        glassObserver = UserDefaults.standard.observe(\.glassTintAmount, options: [.new]) { [weak self] _, _ in
+            DispatchQueue.main.async {
+                MainActor.assumeIsolated { self?.reloadGlass() }
+            }
+        }
+    }
+
+    private func reloadGlass() {
+        let tint = Self.systemGlassTint
+        if abs(tint - glassTint) > 0.001 { glassTint = tint }
     }
 
     private func reload() {
+        reloadGlass()
         var newTheme = IslandTheme(rawValue: Prefs.string(.theme) ?? "") ?? .oled
         if newTheme == .liquidGlass, !IslandTheme.supportsLiquidGlass { newTheme = .frosted }
         if newTheme != theme { theme = newTheme }
@@ -116,7 +134,8 @@ final class Appearance {
         switch theme {
         case .oled: .black
         case .graphite: Color.white.opacity(0.055)
-        case .liquidGlass, .frosted: Color.white.opacity(0.07)
+        case .liquidGlass: Color.white.opacity(0.04 + 0.05 * (1 - glassTint))
+        case .frosted: Color.white.opacity(0.07)
         }
     }
 
@@ -129,13 +148,15 @@ final class Appearance {
     }
 }
 
-struct IslandBackground: View {
+struct IslandBackground<S: Shape>: View {
     let theme: IslandTheme
     let large: Bool
+    var glassTint: Double = 0.35
+    let shape: S
 
     var body: some View {
         ZStack {
-            Color.black
+            Color.black.opacity(large && theme.isTranslucent ? 0 : 1)
             if large {
                 switch theme {
                 case .oled:
@@ -143,36 +164,44 @@ struct IslandBackground: View {
                 case .graphite:
                     Color(white: 0.105).transition(.opacity)
                 case .liquidGlass:
-                    GlassBackdrop(liquid: true).transition(.opacity)
+                    liquidGlass.transition(.opacity)
                 case .frosted:
-                    GlassBackdrop(liquid: false).transition(.opacity)
+                    shape.fill(.ultraThinMaterial)
+                        .overlay(shape.fill(Color.black.opacity(0.25)))
+                        .transition(.opacity)
                 }
             }
         }
+        .environment(\.colorScheme, .dark)
         .animation(.easeInOut(duration: 0.25), value: theme)
+        .animation(.easeInOut(duration: 0.25), value: glassTint)
+    }
+
+    @ViewBuilder
+    private var liquidGlass: some View {
+        if #available(macOS 26.0, *) {
+            let dim = Color.black.opacity(0.22 + 0.45 * glassTint)
+            Color.clear
+                .glassEffect((glassTint < 0.15 ? Glass.clear : Glass.regular).tint(dim), in: shape)
+        } else {
+            shape.fill(.ultraThinMaterial)
+        }
     }
 }
 
-private struct GlassBackdrop: NSViewRepresentable {
-    let liquid: Bool
+struct GlassEdge<S: Shape>: View {
+    let shape: S
 
-    func makeNSView(context: Context) -> NSView {
-        if liquid, #available(macOS 26.0, *) {
-            let glass = NSGlassEffectView()
-            glass.style = .regular
-            glass.tintColor = NSColor.black.withAlphaComponent(0.32)
-            glass.cornerRadius = 0
-            return glass
-        }
-        let effect = NSVisualEffectView()
-        effect.material = .hudWindow
-        effect.blendingMode = .behindWindow
-        effect.state = .active
-        effect.appearance = NSAppearance(named: .darkAqua)
-        return effect
+    var body: some View {
+        shape
+            .stroke(
+                LinearGradient(colors: [.white.opacity(0.42), .white.opacity(0.08), .white.opacity(0.18)],
+                               startPoint: .top, endPoint: .bottom),
+                lineWidth: 1
+            )
+            .blendMode(.plusLighter)
+            .allowsHitTesting(false)
     }
-
-    func updateNSView(_ view: NSView, context: Context) {}
 }
 
 extension NSColor {
@@ -188,4 +217,8 @@ extension NSColor {
         return String(format: "#%02X%02X%02X", Int((c.redComponent * 255).rounded()),
                       Int((c.greenComponent * 255).rounded()), Int((c.blueComponent * 255).rounded()))
     }
+}
+
+extension UserDefaults {
+    @objc(NSGlassTintAmount) dynamic var glassTintAmount: Double { double(forKey: "NSGlassTintAmount") }
 }

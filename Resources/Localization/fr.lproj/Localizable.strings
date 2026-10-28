@@ -251,7 +251,6 @@
 "Title" = "Titre";
 "Today" = "Aujourd’hui";
 "Tools" = "Outils";
-"Translucent glass that refracts what is behind it." = "Verre translucide qui réfracte l’arrière-plan.";
 "Turn Off" = "Désactiver";
 "Unknown" = "Inconnu";
 "Unlock" = "Déverrouiller";
@@ -278,3 +277,4 @@
 "Your notes, clipboard history and shelf are kept." = "Vos notes, l’historique du presse-papiers et l’étagère sont conservés.";
 "Drag to move all · ⌘ for one" = "Glissez pour tout déplacer · ⌘ pour un seul";
 "Buy Me a Coffee" = "Offrez-moi un café";
+"Real macOS glass that follows the Liquid Glass setting in System Settings." = "Vrai verre macOS qui suit le réglage Liquid Glass des Réglages Système.";

@@ -122,7 +122,8 @@ struct MediaExpandedView: View {
             .resizable()
             .frame(width: 22, height: 22)
             .padding(2)
-            .background(Circle().fill(.black))
+            .background(Circle().fill(.black.opacity(0.75)))
+            .background(Circle().fill(.ultraThinMaterial))
             .offset(x: 7, y: 7)
             .help(session.sourceLabel)
     }

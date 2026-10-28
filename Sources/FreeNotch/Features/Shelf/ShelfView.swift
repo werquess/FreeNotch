@@ -115,14 +115,11 @@ struct ShelfView: View {
             .foregroundStyle(airDropTargeted ? .black : .white)
             .frame(width: 96)
             .frame(maxHeight: .infinity)
-            .background(
+            .background {
                 RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
-                    .fill(airDropTargeted ? Color.cyan : Color.black)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: Theme.cardRadius, style: .continuous)
-                    .strokeBorder(Theme.hairline, lineWidth: 1)
-            )
+                    .fill(Color.cyan.opacity(airDropTargeted ? 1 : 0.1))
+            }
+            .islandCard()
             .scaleEffect(airDropTargeted ? 1.04 : 1)
             .animation(.spring(response: 0.3, dampingFraction: 0.7), value: airDropTargeted)
         }

@@ -21,8 +21,15 @@ private struct IslandCardModifier: ViewModifier {
                     .fill(highlighted ? Theme.hoverFill : appearance.cardFill)
             }
             .overlay {
-                RoundedRectangle(cornerRadius: radius, style: .continuous)
-                    .strokeBorder(appearance.hairline, lineWidth: 1)
+                if appearance.theme == .liquidGlass {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(LinearGradient(colors: [.white.opacity(0.3), .white.opacity(0.05), .white.opacity(0.12)],
+                                                     startPoint: .top, endPoint: .bottom), lineWidth: 1)
+                        .blendMode(.plusLighter)
+                } else {
+                    RoundedRectangle(cornerRadius: radius, style: .continuous)
+                        .strokeBorder(appearance.hairline, lineWidth: 1)
+                }
             }
     }
 }

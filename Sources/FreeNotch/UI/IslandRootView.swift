@@ -42,12 +42,18 @@ struct IslandRootView: View {
                     .frame(width: size.width, height: size.height, alignment: .top)
             }
             .frame(width: size.width, height: size.height)
-            .background(IslandBackground(theme: appearance.theme, large: p.isLarge))
+            .background(IslandBackground(theme: appearance.theme, large: p.isLarge, glassTint: appearance.glassTint, shape: shape))
             .clipShape(shape)
             .overlay {
                 shape.stroke(.white.opacity(vm.isHovering && !p.isLarge ? 0.18 : 0), lineWidth: 1)
             }
-            .shadow(color: .black.opacity(p.isLarge ? 0.5 : (vm.isHovering ? 0.35 : 0)), radius: p.isLarge ? 22 : 10, y: p.isLarge ? 10 : 4)
+            .overlay {
+                if p.isLarge, appearance.theme == .liquidGlass {
+                    GlassEdge(shape: shape).transition(.opacity)
+                }
+            }
+            .shadow(color: .black.opacity(p.isLarge ? (appearance.theme == .liquidGlass ? 0.32 : 0.5) : (vm.isHovering ? 0.35 : 0)),
+                    radius: p.isLarge ? 22 : 10, y: p.isLarge ? 10 : 4)
             .contentShape(shape)
 
             Spacer(minLength: 0)
