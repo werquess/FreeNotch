@@ -30,6 +30,13 @@ enum SnapshotRenderer {
             ("09-dropzone", { vm.debugForce(mode: .compact, dragging: true) }),
             ("09b-shelf-added", { vm.debugForce(mode: .compact, transient: .shelfAdded(3)) }),
         ]
+        if let art = ProcessInfo.processInfo.environment["SNAPSHOT_ART"].flatMap(NSImage.init(contentsOfFile:)) {
+            var s = MediaSession(id: "com.spotify.client", kind: .spotify, trackID: "t", title: "About A Girl", artist: "Nirvana",
+                                 album: "Bleach", duration: 168, isPlaying: true, anchorPosition: 69, anchorDate: .now)
+            s.artwork = art
+            s.accent = NSColor(srgbRed: 0.55, green: 0.5, blue: 0.45, alpha: 1)
+            env.media.debugInject(s)
+        }
         for tab in IslandTab.allCases {
             cases.append(("10-expanded-\(tab.rawValue)", { vm.debugForce(mode: .expanded, tab: tab) }))
         }

@@ -28,42 +28,65 @@ struct MediaExpandedView: View {
     }
 
     private func playerLayout(_ session: MediaSession) -> some View {
-        HStack(spacing: 18) {
-            ArtworkView(image: session.artwork, size: 104, corner: 18)
-                .matchedGeometryEffect(id: "artwork", in: ns)
-                .shadow(color: Color(nsColor: session.accent).opacity(0.45), radius: 18, y: 6)
-                .overlay(alignment: .bottomTrailing) { sourceBadge(session) }
-
-            VStack(alignment: .leading, spacing: 0) {
-                HStack(alignment: .top) {
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(session.title.isEmpty ? String(localized: "Unknown") : session.title)
-                            .font(.system(size: 16, weight: .semibold))
-                            .lineLimit(1)
-                        Text(session.artist)
-                            .font(.system(size: 13))
-                            .foregroundStyle(.white.opacity(0.6))
-                            .lineLimit(1)
+        let accent = Color(nsColor: session.accent)
+        return GeometryReader { geo in
+            let side = min(geo.size.height, 136)
+            HStack(spacing: 18) {
+                ArtworkView(image: session.artwork, size: side, corner: 18)
+                    .matchedGeometryEffect(id: "artwork", in: ns)
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .strokeBorder(.white.opacity(0.08), lineWidth: 1)
                     }
-                    Spacer()
-                    if lyricsEnabled {
-                        Button { showLyrics = true } label: {
-                            Image(systemName: "quote.bubble.fill").font(.system(size: 13))
+                    .shadow(color: accent.opacity(0.5), radius: 22, y: 8)
+                    .overlay(alignment: .bottomTrailing) { sourceBadge(session) }
+
+                VStack(alignment: .leading, spacing: 0) {
+                    HStack(alignment: .top, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(session.title.isEmpty ? String(localized: "Unknown") : session.title)
+                                .font(.system(size: 17, weight: .bold))
+                                .lineLimit(1)
+                            Text(session.artist)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.white.opacity(0.6))
+                                .lineLimit(1)
+                            HStack(spacing: 6) {
+                                AudioBarsView(isAnimating: session.isPlaying, color: session.accent.blended(withFraction: 0.35, of: .white) ?? .white)
+                                    .frame(width: 14, height: 10)
+                                Text(session.album.isEmpty ? session.sourceLabel : session.album)
+                                    .lineLimit(1)
+                            }
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(Theme.tertiary)
+                            .padding(.top, 3)
                         }
-                        .buttonStyle(IslandButtonStyle(size: 28))
-                        .help(String(localized: "Lyrics"))
+                        .contentTransition(.opacity)
+                        Spacer(minLength: 0)
+                        if lyricsEnabled {
+                            Button { showLyrics = true } label: {
+                                Image(systemName: "quote.bubble.fill").font(.system(size: 13))
+                            }
+                            .buttonStyle(IslandButtonStyle(size: 30))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .help(String(localized: "Lyrics"))
+                        }
                     }
-                    AudioBarsView(isAnimating: session.isPlaying, color: session.accent)
-                        .frame(width: 20, height: 16)
-                        .padding(.top, 6)
-                }
 
-                Spacer(minLength: 6)
-                MediaScrubber(session: session)
-                Spacer(minLength: 6)
-                controls(session)
+                    Spacer(minLength: 6)
+                    MediaScrubber(session: session)
+                    Spacer(minLength: 4)
+                    controls(session)
+                }
+                .frame(maxHeight: side)
             }
-            .frame(maxHeight: 112)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .leading)
+            .background(alignment: .leading) {
+                RadialGradient(colors: [accent.opacity(0.22), .clear], center: .center, startRadius: 0, endRadius: side * 1.3)
+                    .frame(width: side * 2.6, height: side * 2.2)
+                    .offset(x: -side * 0.4)
+                    .allowsHitTesting(false)
+            }
         }
         .padding(.top, 2)
         .transition(.opacity)
@@ -97,33 +120,37 @@ struct MediaExpandedView: View {
     private func sourceBadge(_ session: MediaSession) -> some View {
         Image(nsImage: session.appIcon)
             .resizable()
-            .frame(width: 24, height: 24)
-            .shadow(radius: 3)
-            .offset(x: 6, y: 6)
+            .frame(width: 22, height: 22)
+            .padding(2)
+            .background(Circle().fill(.black))
+            .offset(x: 7, y: 7)
+            .help(session.sourceLabel)
     }
 
     private func controls(_ s: MediaSession) -> some View {
-        HStack(spacing: 22) {
-            Spacer()
+        HStack(spacing: 26) {
             Button { media.previous(s) } label: {
-                Image(systemName: "backward.fill").font(.system(size: 17))
+                Image(systemName: "backward.fill").font(.system(size: 18))
             }
-            .buttonStyle(IslandButtonStyle(size: 34))
+            .buttonStyle(IslandButtonStyle(size: 36))
 
             Button { media.playPause(s) } label: {
                 Image(systemName: s.isPlaying ? "pause.fill" : "play.fill")
-                    .font(.system(size: 24))
+                    .font(.system(size: 20, weight: .semibold))
+                    .foregroundStyle(.black)
                     .contentTransition(.symbolEffect(.replace))
+                    .frame(width: 44, height: 44)
+                    .background(Circle().fill(.white))
             }
-            .buttonStyle(IslandButtonStyle(size: 42))
+            .buttonStyle(IslandButtonStyle(size: 46))
 
             Button { media.next(s) } label: {
-                Image(systemName: "forward.fill").font(.system(size: 17))
+                Image(systemName: "forward.fill").font(.system(size: 18))
             }
-            .buttonStyle(IslandButtonStyle(size: 34))
-            Spacer()
+            .buttonStyle(IslandButtonStyle(size: 36))
         }
-        .foregroundStyle(.white)
+        .foregroundStyle(.white.opacity(0.9))
+        .frame(maxWidth: .infinity)
     }
 
     private func compactControls(_ s: MediaSession) -> some View {
@@ -214,22 +241,26 @@ struct MediaScrubber: View {
     let session: MediaSession
     @Environment(MediaController.self) private var media
     @State private var dragValue: Double?
+    @State private var hovering = false
+
+    private var active: Bool { dragValue != nil || hovering }
 
     var body: some View {
         let duration = max(session.duration, 1)
-        let accent = Color(nsColor: session.accent)
 
         TimelineView(.periodic(from: .now, by: session.isPlaying ? 1 : 3600)) { ctx in
             let current = dragValue ?? session.position(at: ctx.date)
-            VStack(spacing: 4) {
+            HStack(spacing: 10) {
+                Text(format(current))
+                    .frame(minWidth: 34, alignment: .trailing)
                 GeometryReader { geo in
                     ZStack(alignment: .leading) {
-                        Capsule().fill(.white.opacity(0.15))
+                        Capsule().fill(.white.opacity(0.14))
                         Capsule()
-                            .fill(accent)
+                            .fill(.white.opacity(active ? 1 : 0.85))
                             .frame(width: geo.size.width * CGFloat(min(current / duration, 1)))
                     }
-                    .frame(height: dragValue == nil ? 5 : 8)
+                    .frame(height: active ? 7 : 4)
                     .frame(maxHeight: .infinity)
                     .contentShape(Rectangle())
                     .gesture(
@@ -242,19 +273,16 @@ struct MediaScrubber: View {
                                 dragValue = nil
                             }
                     )
-                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: dragValue == nil)
+                    .onHover { hovering = $0 }
+                    .animation(.spring(response: 0.25, dampingFraction: 0.8), value: active)
                     .animation(.linear(duration: 1), value: dragValue == nil ? current : 0)
                 }
-                .frame(height: 10)
-
-                HStack {
-                    Text(format(current))
-                    Spacer()
-                    Text(session.duration > 0 ? "-" + format(duration - current) : String(localized: "Live"))
-                }
-                .font(.system(size: 10, weight: .medium, design: .rounded).monospacedDigit())
-                .foregroundStyle(.white.opacity(0.45))
+                .frame(height: 14)
+                Text(session.duration > 0 ? "-" + format(duration - current) : String(localized: "Live"))
+                    .frame(minWidth: 34, alignment: .leading)
             }
+            .font(.system(size: 10, weight: .semibold, design: .rounded).monospacedDigit())
+            .foregroundStyle(.white.opacity(0.5))
         }
     }
 

@@ -485,4 +485,11 @@ final class MediaController {
             }
         }
     }
+
+    #if DEBUG
+    func debugInject(_ session: MediaSession) {
+        sessions = [session]
+        selectedID = session.id
+    }
+    #endif
 }

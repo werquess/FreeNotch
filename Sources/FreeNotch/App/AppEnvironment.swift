@@ -23,6 +23,7 @@ final class AppEnvironment {
     private let bluetooth = BluetoothMonitor()
     private var trustPoll: DispatchSourceTimer?
     private var replaceHUDSetting = Prefs.bool(.replaceSystemHUD)
+    private var lastBrightness = DisplayBrightness.get()
 
     init() {
         island = IslandViewModel(media: media, pomodoro: pomodoro, lyrics: lyrics, stopwatch: stopwatch)
@@ -36,6 +37,7 @@ final class AppEnvironment {
         system.start()
         volume.start()
         if Prefs.bool(.activityBluetooth) { bluetooth.start() }
+        DisplayBrightness.observeChanges { [weak self] level in self?.brightnessChanged(level) }
         updater.start()
 
         keyMonitor.start()
@@ -152,23 +154,24 @@ final class AppEnvironment {
             return true
 
         case .brightnessUp, .brightnessDown:
-            if intercepting, let current = DisplayBrightness.get() {
-                let delta = key == .brightnessUp ? step : -step
-                let target = min(1, max(0, ((current + delta) / step).rounded() * step))
-                DisplayBrightness.set(target)
-                island.showHUD(HUDEvent(kind: .brightness, level: target))
-                return true
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) { [weak self] in
-                self?.island.showHUD(HUDEvent(kind: .brightness, level: DisplayBrightness.get() ?? 0.5))
-            }
-            return false
+            guard intercepting, let current = DisplayBrightness.get() else { return false }
+            let delta = key == .brightnessUp ? step : -step
+            let target = min(1, max(0, ((current + delta) / step).rounded() * step))
+            lastBrightness = target
+            DisplayBrightness.set(target)
+            island.showHUD(HUDEvent(kind: .brightness, level: target))
+            return true
 
         case .keyboardUp, .keyboardDown:
 
             island.showHUD(HUDEvent(kind: .keyboard, level: key == .keyboardUp ? 1 : 0.3))
             return false
         }
+    }
+
+    private func brightnessChanged(_ level: Float) {
+        defer { lastBrightness = level }
+        guard let last = lastBrightness, abs(level - last) >= 0.004 else { return }
+        island.showHUD(HUDEvent(kind: .brightness, level: level))
     }
 }

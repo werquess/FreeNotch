@@ -19,13 +19,15 @@ for lproj in "$ROOT"/Resources/Localization/*.lproj(N); do
     cp -R "$lproj" "$APP/Contents/Resources/"
 done
 
-IDENTITY="${CODESIGN_IDENTITY:--}"
-if [[ "$IDENTITY" == "-" ]]; then
-    BUNDLE_ID="$(/usr/libexec/PlistBuddy -c "Print CFBundleIdentifier" "$APP/Contents/Info.plist")"
-    codesign --force --sign - --timestamp=none \
-        --requirements "=designated => identifier \"$BUNDLE_ID\"" "$APP"
+SIGNING_DIR="${FREENOTCH_SIGNING_DIR:-$HOME/.freenotch-signing}"
+KEYCHAIN="$SIGNING_DIR/signing.keychain-db"
+if [[ -n "${CODESIGN_IDENTITY:-}" ]]; then
+    codesign --force --sign "$CODESIGN_IDENTITY" --timestamp=none "$APP"
+elif [[ -f "$KEYCHAIN" && -f "$SIGNING_DIR/password" ]]; then
+    security unlock-keychain -p "$(cat "$SIGNING_DIR/password")" "$KEYCHAIN"
+    codesign --force --keychain "$KEYCHAIN" --sign "FreeNotch Self-Signed" --timestamp=none "$APP"
 else
-    codesign --force --sign "$IDENTITY" --timestamp=none "$APP"
+    codesign --force --sign - --timestamp=none "$APP"
 fi
 echo "Built $APP"
 

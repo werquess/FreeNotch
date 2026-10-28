@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.0.5
+
+- Redesigned media player: larger artwork that fills the notch, a soft glow in the album's color, inline progress bar with times, album name and a bold play button
+- Permissions now really stick across updates. FreeNotch is signed with a stable certificate, so after granting Accessibility and Input Monitoring one last time on this version, macOS will not ask again.
+- The macOS volume and brightness pop-ups are reliably replaced by the FreeNotch HUD
+- The brightness HUD now also appears when brightness is changed from Control Center
+
 ## 1.0.4
 
 - Permissions now stick: macOS no longer asks again for Bluetooth, Accessibility and media control after every launch or update. After installing this version, grant them one last time.
