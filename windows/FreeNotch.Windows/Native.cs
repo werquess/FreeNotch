@@ -243,6 +243,55 @@ internal static class Native
     [DllImport("user32.dll")]
     public static extern bool DestroyMenu(IntPtr hMenu);
 
+    public const uint WM_DROPFILES = 0x0233;
+    private const uint WM_COPYGLOBALDATA = 0x0049;
+    private const uint MSGFLT_ALLOW = 1;
+
+    [DllImport("shell32.dll")]
+    private static extern void DragAcceptFiles(IntPtr hWnd, bool accept);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern uint DragQueryFile(IntPtr hDrop, uint iFile, System.Text.StringBuilder? lpszFile, uint cch);
+
+    [DllImport("shell32.dll")]
+    private static extern void DragFinish(IntPtr hDrop);
+
+    [DllImport("user32.dll")]
+    private static extern bool ChangeWindowMessageFilterEx(IntPtr hWnd, uint message, uint action, IntPtr filter);
+
+    private static SubclassProc? dropProc;
+
+    // Classic shell drops: a fallback for when the XAML drop target never sees the drag.
+    public static void AcceptFiles(IntPtr hwnd, Action<string[]> dropped)
+    {
+        dropProc = (hWnd, msg, wParam, lParam, id, data) =>
+        {
+            if (msg != WM_DROPFILES) return DefSubclassProc(hWnd, msg, wParam, lParam);
+            var paths = new List<string>();
+            try
+            {
+                var count = DragQueryFile(wParam, 0xFFFFFFFF, null, 0);
+                for (uint i = 0; i < count; i++)
+                {
+                    var length = DragQueryFile(wParam, i, null, 0);
+                    var buffer = new System.Text.StringBuilder((int)length + 1);
+                    DragQueryFile(wParam, i, buffer, length + 1);
+                    paths.Add(buffer.ToString());
+                }
+            }
+            finally
+            {
+                DragFinish(wParam);
+            }
+            if (paths.Count > 0) dropped(paths.ToArray());
+            return IntPtr.Zero;
+        };
+        SetWindowSubclass(hwnd, dropProc, new IntPtr(0x464F), IntPtr.Zero);
+        ChangeWindowMessageFilterEx(hwnd, WM_DROPFILES, MSGFLT_ALLOW, IntPtr.Zero);
+        ChangeWindowMessageFilterEx(hwnd, WM_COPYGLOBALDATA, MSGFLT_ALLOW, IntPtr.Zero);
+        DragAcceptFiles(hwnd, true);
+    }
+
     private static readonly SubclassProc FramelessProc = (hWnd, msg, wParam, lParam, id, data) =>
         msg == WM_NCCALCSIZE && wParam != IntPtr.Zero ? IntPtr.Zero : DefSubclassProc(hWnd, msg, wParam, lParam);
 

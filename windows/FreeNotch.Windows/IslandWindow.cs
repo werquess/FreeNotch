@@ -12,8 +12,9 @@ public sealed class IslandWindow : Window
     private enum Phase { Hidden, Peek, Activity, Hud, Opening, Card, Closing }
 
     private static readonly Vector2 Arc = new(210, 20);
-    private const float CardBottom = 24;
-    private const float CardEar = 14;
+    private const float CardRadius = 28;
+    private const float Gap = 10;
+    private const float ShadowPad = 34;
     private const float SmallBottom = 14;
     private const float SmallEar = 6;
     private const float HudSide = 96;
@@ -64,13 +65,18 @@ public sealed class IslandWindow : Window
         hwnd = WindowNative.GetWindowHandle(this);
         var context = new TabContext(settings, media, queue, hwnd)
         {
-            HoldOpen = on => held = on,
+            HoldOpen = on =>
+            {
+                held = on;
+                if (!on && !pointerInside) leaveTimer.Start();
+            },
             RequestClose = Close,
             OpenTab = OpenTab,
             OpenSettings = () => OpenSettings?.Invoke(),
         };
         card = new TabbedCard(context);
         card.Resized += OnCardResized;
+        card.Margin = new Thickness(0, Gap, 0, 0);
         compact = new CompactContent(media);
 
         var presenter = OverlappedPresenter.Create();
@@ -83,6 +89,7 @@ public sealed class IslandWindow : Window
         AppWindow.IsShownInSwitchers = false;
         Native.SetToolWindow(hwnd);
         Native.MakeFrameless(hwnd);
+        Native.AcceptFiles(hwnd, paths => queue.TryEnqueue(() => card.AddFiles(paths)));
 
         view.AddLayer(compact);
         view.AddLayer(hud);
@@ -129,9 +136,11 @@ public sealed class IslandWindow : Window
 
     private NotchShape ActivityShape(Activity a) => new(NotchWidth + CompactContent.Side(a) * 2 + 20, NotchHeight, SmallBottom, SmallEar);
     private NotchShape HudShape => new(NotchWidth + HudSide * 2, NotchHeight, SmallBottom, SmallEar);
-    private NotchShape CardShape => new(TabbedCard.CardWidth, card.CardSize.Y, CardBottom, CardEar);
+    private NotchShape CardShape => new(TabbedCard.CardWidth, card.CardSize.Y, CardRadius, 0, Gap);
 
-    private static Vector2 Footprint(NotchShape s) => new(s.Width + s.Ear * 2 + 4, s.Height + 4);
+    private static Vector2 Footprint(NotchShape s) => s.Floating
+        ? new(s.Width + ShadowPad * 2, s.Gap + s.Height + ShadowPad)
+        : new(s.Width + s.Ear * 2 + 4, s.Height + 4);
 
     public void Start()
     {
@@ -155,7 +164,7 @@ public sealed class IslandWindow : Window
         anchorX = screen.X + screen.Width / 2;
     }
 
-    private Vector2 Room => new(TabbedCard.CardWidth * 1.03f + CardEar * 2 + 24, card.MaxHeight * 1.04f + 24);
+    private Vector2 Room => new(TabbedCard.CardWidth * 1.03f + ShadowPad * 2, Gap + card.MaxHeight * 1.04f + ShadowPad + 8);
 
     private void ShowWindow()
     {
@@ -289,9 +298,9 @@ public sealed class IslandWindow : Window
         switch (phase)
         {
             case Phase.Hidden:
-                if (dy <= 1 && dy >= -2 && dx <= TriggerHalf * scale && x >= screen.X && x < screen.X + screen.Width)
+                var dragging = mouse.LeftDown;
+                if (dy <= (dragging ? 4 : 1) && dy >= -2 && dx <= TriggerHalf * scale && x >= screen.X && x < screen.X + screen.Width)
                 {
-                    var dragging = mouse.LeftDown;
                     queue.TryEnqueue(() =>
                     {
                         if (phase != Phase.Hidden) return;
@@ -302,6 +311,7 @@ public sealed class IslandWindow : Window
                 return;
             case Phase.Peek:
                 inside = dx <= PeekHalf * scale && dy <= PeekDepth * scale && dy >= -2;
+                if (inside && mouse.LeftDown) queue.TryEnqueue(() => OpenTab("shelf"));
                 break;
             case Phase.Activity:
                 inside = dx <= (shape.Width / 2 + shape.Ear + 6) * scale && dy <= (shape.Height + 8) * scale && dy >= -2;
@@ -310,7 +320,7 @@ public sealed class IslandWindow : Window
             case Phase.Card:
             case Phase.Opening:
                 if (settings.OpenMode != OpenMode.Hover) return;
-                inside = dx <= (shape.Width / 2 + Slack) * scale && dy <= (shape.Height + Slack) * scale && dy >= -2;
+                inside = dx <= (shape.Width / 2 + Slack) * scale && dy <= (shape.Gap + shape.Height + Slack) * scale && dy >= -2;
                 break;
             default:
                 return;
@@ -401,25 +411,28 @@ public sealed class IslandWindow : Window
         ShowWindow();
         Clip(Room);
         shape = target;
-        if (fromNotch)
-        {
-            view.Morph(target);
-            view.ShowLayer(card, card.CardSize, 160);
-            Timer(420, Opened).Start();
-        }
-        else
-        {
-            view.Pour(Arc, target, Opened);
-            view.ShowLayer(card, card.CardSize, 420);
-        }
+        view.Fall(Arc, target, Opened);
+        view.ShowLayer(card, card.CardSize, 480);
         shrinkTimer.Stop();
-        shrinkTimer.Start();
     }
 
     private void Opened()
     {
         if (phase != Phase.Opening) return;
         phase = Phase.Card;
+        Clip(Footprint(shape));
+        TakeFocus();
+    }
+
+    // Taking focus in the middle of a file drag would fight the drag source, so wait for the drop.
+    private void TakeFocus()
+    {
+        if (phase != Phase.Card) return;
+        if (mouse.LeftDown)
+        {
+            Timer(150, TakeFocus).Start();
+            return;
+        }
         Activate();
         Native.SetForegroundWindow(hwnd);
     }
@@ -433,13 +446,28 @@ public sealed class IslandWindow : Window
         var next = CurrentActivity();
         if (next != Activity.None)
         {
-            phase = Phase.Hidden;
+            phase = Phase.Closing;
             view.ShowLayer(null, Vector2.Zero, 0);
-            ShowActivity(next);
+            Clip(Room);
+            view.Absorb(ActivityShape(next), () =>
+            {
+                if (phase != Phase.Closing) return;
+                pointerInside = false;
+                var now = CurrentActivity();
+                phase = Phase.Hidden;
+                if (now != Activity.None)
+                {
+                    ShowActivity(now);
+                    return;
+                }
+                phase = Phase.Activity;
+                Rest();
+            });
             return;
         }
         phase = Phase.Closing;
         view.ShowLayer(null, Vector2.Zero, 0);
+        Clip(Room);
         view.Drain(Arc, () =>
         {
             if (phase != Phase.Closing) return;

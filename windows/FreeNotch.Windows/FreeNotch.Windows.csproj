@@ -16,7 +16,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\FreeNotch.ico</ApplicationIcon>
-    <Version>0.3.0</Version>
+    <Version>0.4.0</Version>
     <Product>FreeNotch</Product>
     <Company>werquess</Company>
     <Copyright>Oğuz Mete</Copyright>

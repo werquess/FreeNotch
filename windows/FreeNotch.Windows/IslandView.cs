@@ -9,23 +9,34 @@ using Windows.UI;
 
 namespace FreeNotch;
 
-public readonly record struct NotchShape(float Width, float Height, float Bottom, float Ear);
+public readonly record struct NotchShape(float Width, float Height, float Bottom, float Ear, float Gap = 0)
+{
+    public bool Floating => Gap > 0;
+    public float Lift => Floating ? 0 : Bottom;
+}
 
 public sealed class IslandView : Grid
 {
+    private const float Ball = 40;
+    private const float Drip = 15;
+
     private readonly Compositor compositor;
     private readonly ContainerVisual root;
-    private readonly SpriteVisual arcBlur;
     private readonly ShapeVisual arcVisual;
-    private readonly SpriteVisual bodyBlur;
+    private readonly LayerVisual bodyLayer;
     private readonly ShapeVisual bodyVisual;
     private readonly ShapeVisual glassVisual;
+    private readonly DropShadow shadow;
     private readonly CompositionEllipseGeometry ellipse;
     private readonly CompositionRoundedRectangleGeometry geometry;
+    private readonly CompositionRoundedRectangleGeometry inner;
     private readonly CompositionRectangleGeometry leftEar;
     private readonly CompositionRectangleGeometry rightEar;
     private readonly CompositionSpriteShape arcSprite;
     private readonly CompositionSpriteShape sprite;
+    private readonly CompositionSpriteShape sheenSprite;
+    private readonly CompositionSpriteShape rimSprite;
+    private readonly CompositionSpriteShape innerSprite;
     private readonly CompositionSpriteShape glassSprite;
     private readonly CompositionSpriteShape leftSprite;
     private readonly CompositionSpriteShape rightSprite;
@@ -34,8 +45,9 @@ public sealed class IslandView : Grid
     private readonly Grid layerHost = new();
     private readonly List<FrameworkElement> layers = new();
     private FrameworkElement? activeLayer;
-    private readonly bool blurAvailable;
     private IslandTheme theme = IslandTheme.Smoke;
+    private float shade = 0.5f;
+    private bool arcShown;
 
     public IslandView()
     {
@@ -50,6 +62,8 @@ public sealed class IslandView : Grid
         props.InsertScalar("H", 0f);
         props.InsertScalar("R", 14f);
         props.InsertScalar("E", 0f);
+        props.InsertScalar("Y", 0f);
+        props.InsertScalar("T", 14f);
         props.InsertScalar("ArcY", 0f);
 
         root = compositor.CreateContainerVisual();
@@ -62,7 +76,13 @@ public sealed class IslandView : Grid
         arcVisual.Shapes.Add(arcSprite);
 
         geometry = compositor.CreateRoundedRectangleGeometry();
+        inner = compositor.CreateRoundedRectangleGeometry();
         sprite = compositor.CreateSpriteShape(geometry);
+        sheenSprite = compositor.CreateSpriteShape(geometry);
+        rimSprite = compositor.CreateSpriteShape(geometry);
+        rimSprite.StrokeThickness = 1;
+        innerSprite = compositor.CreateSpriteShape(inner);
+        innerSprite.StrokeThickness = 1;
         leftEar = compositor.CreateRectangleGeometry();
         rightEar = compositor.CreateRectangleGeometry();
         leftSprite = compositor.CreateSpriteShape(leftEar);
@@ -71,43 +91,52 @@ public sealed class IslandView : Grid
         bodyVisual.Shapes.Add(sprite);
         bodyVisual.Shapes.Add(leftSprite);
         bodyVisual.Shapes.Add(rightSprite);
+        bodyVisual.Shapes.Add(sheenSprite);
+        bodyVisual.Shapes.Add(innerSprite);
+        bodyVisual.Shapes.Add(rimSprite);
 
         glassSprite = compositor.CreateSpriteShape(geometry);
         glassSprite.StrokeThickness = 1;
         glassVisual = compositor.CreateShapeVisual();
         glassVisual.Shapes.Add(glassSprite);
+        glassVisual.Opacity = 0;
 
-        arcBlur = compositor.CreateSpriteVisual();
-        bodyBlur = compositor.CreateSpriteVisual();
-        blurAvailable = false;
+        shadow = compositor.CreateDropShadow();
+        shadow.BlurRadius = 28;
+        shadow.Offset = new Vector3(0, 10, 0);
+        shadow.Color = Colors.Black;
+        shadow.Opacity = 0.5f;
+        bodyLayer = compositor.CreateLayerVisual();
+        bodyLayer.Children.InsertAtTop(bodyVisual);
+        bodyLayer.Children.InsertAtTop(glassVisual);
+        bodyLayer.Shadow = shadow;
 
-        root.Children.InsertAtTop(bodyBlur);
-        root.Children.InsertAtTop(bodyVisual);
-        root.Children.InsertAtTop(glassVisual);
-        root.Children.InsertAtTop(arcBlur);
+        root.Children.InsertAtTop(bodyLayer);
         root.Children.InsertAtTop(arcVisual);
-        foreach (var v in AllVisuals) v.Opacity = 0;
+        arcVisual.Opacity = 0;
+        bodyLayer.Opacity = 0;
 
         Bind(ellipse, "Center", "Vector2(host.Size.X * 0.5, props.ArcY)");
-        Bind(geometry, "Size", "Vector2(props.W, props.H + props.R)");
-        Bind(geometry, "Offset", "Vector2((host.Size.X - props.W) * 0.5, -props.R)");
-        Bind(geometry, "CornerRadius", "Vector2(Min(props.R, props.W * 0.5), Min(props.R, (props.H + props.R) * 0.5))");
+        Bind(geometry, "Size", "Vector2(props.W, props.H + props.T)");
+        Bind(geometry, "Offset", "Vector2((host.Size.X - props.W) * 0.5, props.Y - props.T)");
+        Bind(geometry, "CornerRadius", "Vector2(Min(props.R, props.W * 0.5), Min(props.R, (props.H + props.T) * 0.5))");
+        Bind(inner, "Size", "Vector2(Max(props.W - 3, 0), Max(props.H + props.T - 3, 0))");
+        Bind(inner, "Offset", "Vector2((host.Size.X - props.W) * 0.5 + 1.5, props.Y - props.T + 1.5)");
+        Bind(inner, "CornerRadius", "Vector2(Max(Min(props.R, props.W * 0.5) - 1.5, 0), Max(Min(props.R, (props.H + props.T) * 0.5) - 1.5, 0))");
         Bind(leftEar, "Size", "Vector2(props.E, Min(props.E, props.H))");
-        Bind(leftEar, "Offset", "Vector2((host.Size.X - props.W) * 0.5 - props.E, 0)");
+        Bind(leftEar, "Offset", "Vector2((host.Size.X - props.W) * 0.5 - props.E, props.Y)");
         Bind(rightEar, "Size", "Vector2(props.E, Min(props.E, props.H))");
-        Bind(rightEar, "Offset", "Vector2((host.Size.X + props.W) * 0.5, 0)");
+        Bind(rightEar, "Offset", "Vector2((host.Size.X + props.W) * 0.5, props.Y)");
 
         ElementCompositionPreview.SetElementChildVisual(shapeHost, root);
         shapeHost.SizeChanged += (_, e) =>
         {
             var size = new Vector2((float)e.NewSize.Width, (float)e.NewSize.Height);
             root.Size = size;
-            foreach (var v in AllVisuals) v.Size = size;
+            foreach (var v in new Visual[] { arcVisual, bodyLayer, bodyVisual, glassVisual }) v.Size = size;
         };
         ApplyTheme(IslandTheme.Smoke);
     }
-
-    private Visual[] AllVisuals => new Visual[] { arcBlur, arcVisual, bodyBlur, bodyVisual, glassVisual };
 
     private void Bind(CompositionObject target, string property, string expression)
     {
@@ -119,14 +148,19 @@ public sealed class IslandView : Grid
 
     private static Color Argb(byte a, byte r, byte g, byte b) => Color.FromArgb(a, r, g, b);
 
-    private CompositionLinearGradientBrush Vertical(params (float At, Color Color)[] stops)
+    private static Color White(byte a) => Argb(a, 255, 255, 255);
+
+    private CompositionLinearGradientBrush Gradient(Vector2 from, Vector2 to, params (float At, Color Color)[] stops)
     {
         var brush = compositor.CreateLinearGradientBrush();
-        brush.StartPoint = new Vector2(0, 0);
-        brush.EndPoint = new Vector2(0, 1);
+        brush.StartPoint = from;
+        brush.EndPoint = to;
         foreach (var (at, color) in stops) brush.ColorStops.Add(compositor.CreateColorGradientStop(at, color));
         return brush;
     }
+
+    private CompositionLinearGradientBrush Vertical(params (float At, Color Color)[] stops) =>
+        Gradient(new Vector2(0, 0), new Vector2(0, 1), stops);
 
     private CompositionRadialGradientBrush Ear(Vector2 center, Color color)
     {
@@ -140,39 +174,51 @@ public sealed class IslandView : Grid
         return brush;
     }
 
+    private CompositionRadialGradientBrush Sheen()
+    {
+        var brush = compositor.CreateRadialGradientBrush();
+        brush.MappingMode = CompositionMappingMode.Relative;
+        brush.EllipseCenter = new Vector2(0.5f, 0f);
+        brush.EllipseRadius = new Vector2(0.8f, 0.62f);
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(0f, White(30)));
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(0.5f, White(9)));
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(1f, White(0)));
+        return brush;
+    }
+
     public void ApplyTheme(IslandTheme next)
     {
         theme = next;
-        var rim = compositor.CreateLinearGradientBrush();
-        rim.StartPoint = new Vector2(0, 0);
-        rim.EndPoint = new Vector2(1, 1);
-        rim.ColorStops.Add(compositor.CreateColorGradientStop(0f, Argb(120, 255, 255, 255)));
-        rim.ColorStops.Add(compositor.CreateColorGradientStop(0.5f, Argb(26, 255, 255, 255)));
-        rim.ColorStops.Add(compositor.CreateColorGradientStop(1f, Argb(70, 255, 255, 255)));
+        var rim = Vertical((0f, White(150)), (0.1f, White(70)), (0.45f, White(14)), (0.85f, White(26)), (1f, White(96)));
 
         if (theme == IslandTheme.Oled)
         {
             var black = Argb(255, 0, 0, 0);
             sprite.FillBrush = compositor.CreateColorBrush(black);
-            sprite.StrokeBrush = null;
-            sprite.StrokeThickness = 0;
             leftSprite.FillBrush = Ear(new Vector2(0, 1), black);
             rightSprite.FillBrush = Ear(new Vector2(1, 1), black);
+            sheenSprite.FillBrush = null;
+            rimSprite.StrokeBrush = null;
+            innerSprite.StrokeBrush = null;
             arcSprite.FillBrush = compositor.CreateColorBrush(black);
             arcSprite.StrokeBrush = null;
             glassSprite.FillBrush = compositor.CreateColorBrush(black);
             glassSprite.StrokeBrush = null;
-            bodyBlur.Opacity = 0;
-            arcBlur.Opacity = 0;
+            shade = 0.6f;
+            Shade(current.Floating);
             return;
         }
 
-        var top = Argb(238, 10, 10, 13);
-        sprite.FillBrush = Vertical((0f, top), (0.5f, Argb(228, 16, 16, 20)), (1f, Argb(214, 34, 33, 38)));
-        sprite.StrokeBrush = Vertical((0f, Argb(0, 255, 255, 255)), (0.6f, Argb(20, 255, 255, 255)), (1f, Argb(64, 255, 255, 255)));
-        sprite.StrokeThickness = 1;
+        var top = Argb(236, 10, 10, 13);
+        sprite.FillBrush = Vertical((0f, top), (0.55f, Argb(226, 16, 16, 20)), (0.92f, Argb(214, 32, 31, 36)), (1f, Argb(222, 46, 45, 52)));
         leftSprite.FillBrush = Ear(new Vector2(0, 1), top);
         rightSprite.FillBrush = Ear(new Vector2(1, 1), top);
+        sheenSprite.FillBrush = Sheen();
+        rimSprite.StrokeBrush = rim;
+        innerSprite.StrokeBrush = Gradient(new Vector2(0, 0), new Vector2(1, 1),
+            (0f, White(58)), (0.32f, White(0)), (0.7f, White(0)), (1f, White(36)));
+        shade = 0.5f;
+        Shade(current.Floating);
 
         arcSprite.FillBrush = Vertical(
             (0f, Argb(18, 230, 230, 240)),
@@ -181,14 +227,11 @@ public sealed class IslandView : Grid
             (1f, Argb(236, 2, 2, 4)));
         arcSprite.StrokeBrush = rim;
         glassSprite.FillBrush = Vertical(
-            (0f, Argb(46, 210, 210, 222)),
+            (0f, Argb(60, 220, 220, 232)),
             (0.45f, Argb(150, 18, 18, 22)),
-            (1f, Argb(238, 2, 2, 4)));
+            (1f, Argb(236, 4, 4, 6)));
         glassSprite.StrokeBrush = rim;
-        if (bodyVisual.Opacity > 0) bodyBlur.Opacity = Blur ? 1 : 0;
     }
-
-    private bool Blur => blurAvailable && theme == IslandTheme.Smoke;
 
     public void AddLayer(FrameworkElement layer)
     {
@@ -266,26 +309,37 @@ public sealed class IslandView : Grid
 
     private void Set(NotchShape s)
     {
-        foreach (var p in new[] { "W", "H", "R", "E" }) props.StopAnimation(p);
+        foreach (var p in new[] { "W", "H", "R", "E", "Y", "T" }) props.StopAnimation(p);
         props.InsertScalar("W", s.Width);
         props.InsertScalar("H", s.Height);
         props.InsertScalar("R", s.Bottom);
         props.InsertScalar("E", s.Ear);
+        props.InsertScalar("Y", s.Gap);
+        props.InsertScalar("T", s.Lift);
         current = s;
+        Shade(s.Floating);
     }
+
+    private void Shade(bool on) => shadow.Opacity = on ? shade : 0;
 
     private NotchShape current;
 
     private void ShowBody(bool on)
     {
-        bodyVisual.StopAnimation("Opacity");
-        bodyBlur.StopAnimation("Opacity");
-        bodyVisual.Opacity = on ? 1 : 0;
-        bodyBlur.Opacity = on && Blur ? 1 : 0;
+        bodyLayer.StopAnimation("Opacity");
+        bodyLayer.Opacity = on ? 1 : 0;
         bodyShown = on;
     }
 
     private bool bodyShown;
+
+    private void Glass(TimeSpan d, params (float At, float Value)[] keys)
+    {
+        var anim = compositor.CreateScalarKeyFrameAnimation();
+        foreach (var (at, value) in keys) anim.InsertKeyFrame(at, value, Ease(0.4f, 0f, 0.6f, 1f));
+        anim.Duration = d;
+        glassVisual.StartAnimation("Opacity", anim);
+    }
 
     public void Reset()
     {
@@ -294,12 +348,13 @@ public sealed class IslandView : Grid
         Set(new NotchShape(0, 0, 14, 0));
         ellipse.Radius = Vector2.Zero;
         props.InsertScalar("ArcY", 0f);
-        foreach (var v in AllVisuals)
+        foreach (var v in new Visual[] { arcVisual, bodyLayer, glassVisual })
         {
             v.StopAnimation("Opacity");
             v.Opacity = 0;
         }
         bodyShown = false;
+        arcShown = false;
         foreach (var layer in layers)
         {
             layer.IsHitTestVisible = false;
@@ -313,7 +368,7 @@ public sealed class IslandView : Grid
         Reset();
         ellipse.Radius = new Vector2(arc.X * 0.1f, 0);
         arcVisual.Opacity = 1;
-        arcBlur.Opacity = Blur ? 1 : 0;
+        arcShown = true;
 
         const float spreadMs = 420f;
         var total = spreadMs + Math.Max(swellMs, 0);
@@ -336,70 +391,117 @@ public sealed class IslandView : Grid
         }, completed);
     }
 
-    public void Pour(Vector2 arc, NotchShape target, Action completed)
+    private void ArcTo(TimeSpan d, params (float At, Vector2 Radius)[] keys)
     {
-        var d = TimeSpan.FromMilliseconds(680);
-        var start = new NotchShape(arc.X * 0.6f, arc.Y * 1.15f, arc.Y * 1.15f, 0);
-        Set(start);
+        var anim = compositor.CreateVector2KeyFrameAnimation();
+        anim.InsertExpressionKeyFrame(0f, "this.StartingValue");
+        foreach (var (at, radius) in keys) anim.InsertKeyFrame(at, radius, Ease(0.4f, 0f, 0.6f, 1f));
+        anim.Duration = d;
+        ellipse.StartAnimation("Radius", anim);
+    }
+
+    // A drop gathers under the top edge (or the live activity notch), lets go,
+    // falls a little and spreads into the floating card.
+    public void Fall(Vector2 arc, NotchShape target, Action completed)
+    {
+        var d = TimeSpan.FromMilliseconds(860);
+        if (!bodyShown || current.Height <= 0.5f) Set(new NotchShape(Ball * 0.8f, Drip * 1.4f, Drip, 0));
         ShowBody(true);
+        Shade(true);
         glassVisual.StopAnimation("Opacity");
         glassVisual.Opacity = 1;
+        var g = target.Gap;
         Run(() =>
         {
-            var spread = Ease(0.22f, 1f, 0.36f, 1f);
-            var pour = Ease(0.45f, 0f, 0.2f, 1f);
-            var settle = Ease(0.25f, 0.9f, 0.3f, 1f);
-            Key("W", d, (0.55f, target.Width * 1.012f, spread), (1f, target.Width, settle));
-            Key("H", d, (0.12f, start.Height * 1.25f, Ease(0.4f, 0f, 0.6f, 1f)), (0.7f, target.Height * 1.03f, pour), (1f, target.Height, settle));
-            Key("R", d, (0.6f, target.Bottom, settle), (1f, target.Bottom, null));
-            Key("E", d, (0.35f, 0f, null), (0.75f, target.Ear, settle), (1f, target.Ear, null));
+            var stretch = Ease(0.45f, 0f, 0.55f, 1f);
+            var pop = Ease(0.3f, 0f, 0.2f, 1f);
+            var drop = Ease(0.5f, 0f, 0.9f, 0.6f);
+            var spread = Ease(0.2f, 1f, 0.3f, 1f);
+            var settle = Ease(0.3f, 0.9f, 0.3f, 1f);
+            Key("W", d, (0.26f, Ball * 0.6f, stretch), (0.42f, Ball, pop), (0.74f, target.Width * 1.012f, spread), (1f, target.Width, settle));
+            Key("H", d, (0.26f, Ball * 1.35f, stretch), (0.42f, Ball, pop), (0.78f, target.Height * 1.03f, spread), (1f, target.Height, settle));
+            Key("R", d, (0.26f, Drip, stretch), (0.42f, Ball * 0.5f, pop), (0.8f, target.Bottom, settle), (1f, target.Bottom, null));
+            Key("E", d, (0.2f, 0f, stretch), (1f, 0f, null));
+            Key("T", d, (0.3f, Drip, stretch), (0.42f, 0f, pop), (1f, 0f, null));
+            Key("Y", d, (0.3f, 0f, null), (0.48f, g + 12, drop), (0.82f, g - 1, spread), (1f, g, settle));
 
-            var arcOut = compositor.CreateScalarKeyFrameAnimation();
-            arcOut.InsertKeyFrame(0f, 1f);
-            arcOut.InsertKeyFrame(1f, 0f, Ease(0.3f, 0f, 0.7f, 1f));
-            arcOut.Duration = TimeSpan.FromMilliseconds(180);
-            arcVisual.StartAnimation("Opacity", arcOut);
-            if (Blur) arcBlur.StartAnimation("Opacity", arcOut);
+            if (arcShown)
+            {
+                ArcTo(d, (0.28f, new Vector2(arc.X * 0.34f, arc.Y * 0.9f)), (0.6f, new Vector2(arc.X * 0.1f, 0)));
+                var arcOut = compositor.CreateScalarKeyFrameAnimation();
+                arcOut.InsertKeyFrame(0.35f, 1f);
+                arcOut.InsertKeyFrame(0.65f, 0f, Ease(0.3f, 0f, 0.7f, 1f));
+                arcOut.Duration = d;
+                arcVisual.StartAnimation("Opacity", arcOut);
+            }
 
-            var glassOut = compositor.CreateScalarKeyFrameAnimation();
-            glassOut.InsertKeyFrame(0f, 1f);
-            glassOut.InsertKeyFrame(0.3f, 1f);
-            glassOut.InsertKeyFrame(1f, 0f, Ease(0.4f, 0f, 0.6f, 1f));
-            glassOut.Duration = d;
-            glassVisual.StartAnimation("Opacity", glassOut);
+            Glass(d, (0f, 1f), (0.42f, 1f), (1f, 0f));
         }, () =>
         {
             Set(target);
             arcVisual.Opacity = 0;
-            arcBlur.Opacity = 0;
+            arcShown = false;
+            ellipse.Radius = Vector2.Zero;
             glassVisual.Opacity = 0;
             completed();
         });
     }
 
+    // The card pulls back into a drop, rises into the top edge and is gone.
     public void Drain(Vector2 arc, Action completed)
     {
-        var d = TimeSpan.FromMilliseconds(520);
-        var small = new NotchShape(arc.X * 0.55f, arc.Y, arc.Y, 0);
+        var d = TimeSpan.FromMilliseconds(620);
+        var y = current.Gap;
         Run(() =>
         {
             var gather = Ease(0.5f, 0f, 0.2f, 1f);
-            Key("W", d, (0.7f, small.Width, gather), (1f, small.Width * 0.9f, null));
-            Key("H", d, (0.7f, small.Height, gather), (1f, 0f, Ease(0.5f, 0f, 0.8f, 0.5f)));
-            Key("R", d, (0.6f, small.Bottom, gather), (1f, small.Bottom, null));
-            Key("E", d, (0.35f, 0f, gather), (1f, 0f, null));
+            var rise = Ease(0.55f, 0f, 0.35f, 1f);
+            Key("W", d, (0.45f, Ball, gather), (0.7f, Ball * 0.65f, rise), (1f, Ball * 0.4f, null));
+            Key("H", d, (0.45f, Ball, gather), (0.7f, Drip * 1.6f, rise), (1f, 0f, Ease(0.5f, 0f, 0.8f, 0.5f)));
+            Key("R", d, (0.45f, Ball * 0.5f, gather), (0.7f, Drip, rise), (1f, Drip, null));
+            Key("E", d, (0.3f, 0f, gather), (1f, 0f, null));
+            Key("Y", d, (0.45f, y + 4, gather), (0.7f, 0f, rise), (1f, 0f, null));
+            Key("T", d, (0.5f, 0f, null), (0.7f, Drip, rise), (1f, Drip, null));
 
-            var glassIn = compositor.CreateScalarKeyFrameAnimation();
-            glassIn.InsertKeyFrame(0f, 0f);
-            glassIn.InsertKeyFrame(0.55f, 1f, Ease(0.4f, 0f, 0.6f, 1f));
-            glassIn.InsertKeyFrame(1f, 1f);
-            glassIn.Duration = d;
-            glassVisual.StartAnimation("Opacity", glassIn);
+            ellipse.Radius = new Vector2(arc.X * 0.12f, 0);
+            arcVisual.StopAnimation("Opacity");
+            arcVisual.Opacity = 1;
+            ArcTo(d, (0.6f, new Vector2(arc.X * 0.12f, 0)), (0.78f, new Vector2(arc.X * 0.3f, arc.Y * 0.8f)), (1f, new Vector2(arc.X * 0.08f, 0)));
+
+            Glass(d, (0f, 0f), (0.5f, 1f), (1f, 1f));
         }, () =>
         {
             ShowBody(false);
+            arcVisual.Opacity = 0;
+            ellipse.Radius = Vector2.Zero;
             glassVisual.Opacity = 0;
-            current = new NotchShape(0, 0, 14, 0);
+            Set(new NotchShape(0, 0, 14, 0));
+            completed();
+        });
+    }
+
+    // The card pulls back into a drop that rises and melts into the live activity notch.
+    public void Absorb(NotchShape target, Action completed)
+    {
+        var d = TimeSpan.FromMilliseconds(720);
+        var y = current.Gap;
+        Run(() =>
+        {
+            var gather = Ease(0.5f, 0f, 0.2f, 1f);
+            var rise = Ease(0.55f, 0f, 0.35f, 1f);
+            var spread = Ease(0.2f, 1f, 0.3f, 1f);
+            Key("W", d, (0.4f, Ball, gather), (0.62f, Ball * 0.7f, rise), (1f, target.Width, spread));
+            Key("H", d, (0.4f, Ball, gather), (0.62f, Drip * 2f, rise), (1f, target.Height, spread));
+            Key("R", d, (0.4f, Ball * 0.5f, gather), (0.62f, Drip, rise), (1f, target.Bottom, spread));
+            Key("E", d, (0.62f, 0f, null), (1f, target.Ear, spread));
+            Key("Y", d, (0.4f, y + 4, gather), (0.62f, target.Gap, rise), (1f, target.Gap, null));
+            Key("T", d, (0.45f, 0f, null), (0.62f, Math.Max(target.Lift, Drip), rise), (1f, target.Lift, null));
+
+            Glass(d, (0f, 0f), (0.4f, 1f), (1f, 0f));
+        }, () =>
+        {
+            Set(target);
+            glassVisual.Opacity = 0;
             completed();
         });
     }
@@ -408,14 +510,17 @@ public sealed class IslandView : Grid
     {
         if (!bodyShown || current.Height <= 0.5f)
         {
-            Set(new NotchShape(target.Width * 0.72f, 0, target.Bottom, 0));
+            Set(new NotchShape(target.Width * 0.72f, 0, target.Bottom, 0, target.Gap));
             ShowBody(true);
         }
         current = target;
+        Shade(target.Floating);
         Spring("W", target.Width, 0.78f, 56);
         Spring("H", target.Height, 0.8f, 52);
         Spring("R", target.Bottom, 0.9f, 56);
         Spring("E", target.Ear, 0.9f, 56);
+        Spring("Y", target.Gap, 0.9f, 56);
+        Spring("T", target.Lift, 0.9f, 56);
     }
 
     public void Vanish(Action completed)

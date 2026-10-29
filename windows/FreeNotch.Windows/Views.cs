@@ -186,16 +186,31 @@ public sealed class HudContent : Grid
 
 public sealed class MediaCard : Grid
 {
+    private const double ArtSize = 136;
+
     private readonly MediaService media;
-    private readonly Border artwork = Ui.Artwork(112, 20);
-    private readonly TextBlock title = Ui.Text("", 18, FontWeights.SemiBold);
-    private readonly TextBlock artist = Ui.Text("", 13, FontWeights.Normal, 160);
-    private readonly TextBlock source = Ui.Text("", 11, FontWeights.Medium, 105);
+    private readonly Border artwork = Ui.Artwork(ArtSize, 24);
+    private readonly Border badge = new()
+    {
+        Width = 30,
+        Height = 30,
+        CornerRadius = new CornerRadius(15),
+        BorderThickness = new Thickness(2),
+        BorderBrush = new SolidColorBrush(Color.FromArgb(255, 12, 12, 14)),
+        HorizontalAlignment = HorizontalAlignment.Right,
+        VerticalAlignment = VerticalAlignment.Bottom,
+        Margin = new Thickness(0, 0, -6, -6),
+    };
+    private readonly TextBlock badgeText = Ui.Text("", 12, FontWeights.Bold);
+    private readonly TextBlock title = Ui.Text("", 20, FontWeights.SemiBold);
+    private readonly TextBlock artist = Ui.Text("", 14, FontWeights.Medium, 165);
+    private readonly TextBlock detail = Ui.Text("", 12, FontWeights.Medium, 110);
+    private readonly AudioBars bars = new();
     private readonly TextBlock elapsed = Ui.Text("0:00", 11, FontWeights.SemiBold, 130);
     private readonly TextBlock remaining = Ui.Text("0:00", 11, FontWeights.SemiBold, 130);
     private readonly Grid bar = new() { Height = 14, Background = new SolidColorBrush(Colors.Transparent) };
-    private readonly Border barFill = new() { Height = 4, CornerRadius = new CornerRadius(2), Background = Ui.White(235), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
-    private readonly GlyphIcon playIcon = new() { Glyph = "", FontFamily = Ui.Icons, FontSize = 18, Foreground = new SolidColorBrush(Colors.Black) };
+    private readonly Border barFill = new() { Height = 5, CornerRadius = new CornerRadius(2.5), Background = Ui.White(235), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
+    private readonly GlyphIcon playIcon = new() { Glyph = "play", FontSize = 20, Foreground = new SolidColorBrush(Colors.Black) };
     private readonly Grid player = new();
     private readonly StackPanel empty = new() { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     private readonly DispatcherQueueTimer timer;
@@ -206,7 +221,7 @@ public sealed class MediaCard : Grid
     {
         this.media = media;
         this.showLyrics = showLyrics;
-        Padding = new Thickness(22, 4, 24, 4);
+        Padding = new Thickness(24, 2, 24, 6);
         BuildPlayer();
         BuildEmpty();
         Children.Add(player);
@@ -219,14 +234,22 @@ public sealed class MediaCard : Grid
 
     private void BuildPlayer()
     {
-        player.ColumnSpacing = 20;
+        player.ColumnSpacing = 24;
         player.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         player.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        artwork.VerticalAlignment = VerticalAlignment.Center;
-        SetColumn(artwork, 0);
-        player.Children.Add(artwork);
 
-        var right = new Grid { RowSpacing = 0 };
+        var art = new Grid { Width = ArtSize, Height = ArtSize, VerticalAlignment = VerticalAlignment.Center };
+        artwork.BorderBrush = Ui.White(26);
+        artwork.BorderThickness = new Thickness(1);
+        art.Children.Add(artwork);
+        badgeText.HorizontalAlignment = HorizontalAlignment.Center;
+        badgeText.VerticalAlignment = VerticalAlignment.Center;
+        badge.Child = badgeText;
+        art.Children.Add(badge);
+        SetColumn(art, 0);
+        player.Children.Add(art);
+
+        var right = new Grid();
         right.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         right.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         right.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -235,22 +258,41 @@ public sealed class MediaCard : Grid
         SetColumn(right, 1);
         player.Children.Add(right);
 
-        var info = new StackPanel { Spacing = 2 };
+        var head = new Grid { ColumnSpacing = 10 };
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        head.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        var info = new StackPanel { Spacing = 1 };
         info.Children.Add(title);
         info.Children.Add(artist);
-        info.Children.Add(source);
-        source.Margin = new Thickness(0, 2, 0, 0);
-        SetRow(info, 0);
-        right.Children.Add(info);
+        var line = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 7, Margin = new Thickness(0, 3, 0, 0) };
+        bars.Spacing = 2;
+        bars.RenderTransform = new ScaleTransform { ScaleX = 0.8, ScaleY = 0.8 };
+        line.Children.Add(bars);
+        line.Children.Add(detail);
+        info.Children.Add(line);
+        head.Children.Add(info);
+        if (showLyrics != null)
+        {
+            var lyrics = Ui.IconButton("quotes", 13, 32, showLyrics);
+            lyrics.Background = Ui.White(20);
+            lyrics.VerticalAlignment = VerticalAlignment.Top;
+            ToolTipService.SetToolTip(lyrics, Strings.L("Lyrics"));
+            SetColumn(lyrics, 1);
+            head.Children.Add(lyrics);
+        }
+        SetRow(head, 0);
+        right.Children.Add(head);
 
-        var progress = new Grid { ColumnSpacing = 10 };
-        progress.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
+        var progress = new Grid { ColumnSpacing = 12 };
+        progress.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         progress.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        progress.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(36) });
-        elapsed.HorizontalAlignment = HorizontalAlignment.Right;
+        progress.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        elapsed.MinWidth = 32;
+        remaining.MinWidth = 32;
+        remaining.TextAlignment = TextAlignment.Right;
         elapsed.VerticalAlignment = VerticalAlignment.Center;
         remaining.VerticalAlignment = VerticalAlignment.Center;
-        bar.Children.Add(new Border { Height = 4, CornerRadius = new CornerRadius(2), Background = Ui.White(40), VerticalAlignment = VerticalAlignment.Center });
+        bar.Children.Add(new Border { Height = 5, CornerRadius = new CornerRadius(2.5), Background = Ui.White(38), VerticalAlignment = VerticalAlignment.Center });
         bar.Children.Add(barFill);
         bar.PointerPressed += (_, e) =>
         {
@@ -267,28 +309,32 @@ public sealed class MediaCard : Grid
         SetRow(progress, 2);
         right.Children.Add(progress);
 
-        var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 26, HorizontalAlignment = HorizontalAlignment.Center };
-        controls.Children.Add(Ui.IconButton("", 16, 36, media.Previous));
+        var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 30, HorizontalAlignment = HorizontalAlignment.Center };
+        var previous = Ui.IconButton("skip-back", 18, 42, media.Previous);
+        var next = Ui.IconButton("skip-forward", 18, 42, media.Next);
+        previous.VerticalAlignment = VerticalAlignment.Center;
+        next.VerticalAlignment = VerticalAlignment.Center;
+        controls.Children.Add(previous);
         var play = new Button
         {
             Content = playIcon,
-            Width = 44,
-            Height = 44,
+            Width = 52,
+            Height = 52,
             Padding = new Thickness(0),
-            CornerRadius = new CornerRadius(22),
+            CornerRadius = new CornerRadius(26),
             Background = Ui.White(),
             BorderThickness = new Thickness(0),
         };
         play.Click += (_, _) => media.PlayPause();
         controls.Children.Add(play);
-        controls.Children.Add(Ui.IconButton("", 16, 36, media.Next));
+        controls.Children.Add(next);
         SetRow(controls, 4);
         right.Children.Add(controls);
     }
 
     private void BuildEmpty()
     {
-        var icon = Ui.Icon("", 26, 110);
+        var icon = Ui.Icon("music-note", 26, 110);
         icon.HorizontalAlignment = HorizontalAlignment.Center;
         empty.Children.Add(icon);
         var line = Ui.Text(Strings.L("Nothing is playing"), 14, FontWeights.SemiBold, 200);
@@ -304,7 +350,20 @@ public sealed class MediaCard : Grid
         if (active && media.IsPlaying) timer.Start();
         else timer.Stop();
         if (active) Update();
+        else bars.SetAnimating(false);
     }
+
+    private static Color BadgeColor(string source) => source switch
+    {
+        "Spotify" => Color.FromArgb(255, 30, 215, 96),
+        "Apple Music" => Color.FromArgb(255, 250, 45, 72),
+        "Chrome" => Color.FromArgb(255, 66, 133, 244),
+        "Edge" => Color.FromArgb(255, 20, 150, 210),
+        "Firefox" => Color.FromArgb(255, 255, 113, 57),
+        "Brave" => Color.FromArgb(255, 251, 84, 43),
+        "Opera" => Color.FromArgb(255, 255, 27, 45),
+        _ => Color.FromArgb(255, 72, 72, 80),
+    };
 
     public void Update()
     {
@@ -313,9 +372,16 @@ public sealed class MediaCard : Grid
         empty.Visibility = has ? Visibility.Collapsed : Visibility.Visible;
         title.Text = string.IsNullOrEmpty(media.Title) ? Strings.L("Unknown") : media.Title;
         artist.Text = media.Artist;
-        source.Text = media.Source;
+        artist.Visibility = string.IsNullOrEmpty(media.Artist) ? Visibility.Collapsed : Visibility.Visible;
+        detail.Text = string.IsNullOrEmpty(media.Album) ? media.Source : media.Album;
+        badge.Visibility = string.IsNullOrEmpty(media.Source) ? Visibility.Collapsed : Visibility.Visible;
+        badge.Background = new SolidColorBrush(BadgeColor(media.Source));
+        badgeText.Text = string.IsNullOrEmpty(media.Source) ? "" : media.Source[..1].ToUpperInvariant();
+        ToolTipService.SetToolTip(badge, media.Source);
         Ui.SetArtwork(artwork, media.Artwork);
-        playIcon.Glyph = media.IsPlaying ? "" : "";
+        playIcon.Glyph = media.IsPlaying ? "pause" : "play";
+        bars.SetAnimating(media.IsPlaying);
+        bars.Opacity = media.IsPlaying ? 1 : 0.4;
         if (media.IsPlaying && IsHitTestVisible) timer.Start();
         else if (!media.IsPlaying) timer.Stop();
         UpdateProgress();
@@ -326,7 +392,7 @@ public sealed class MediaCard : Grid
         var duration = media.Duration;
         var position = media.Position;
         elapsed.Text = Ui.Time(position);
-        remaining.Text = duration > TimeSpan.Zero ? "-" + Ui.Time(duration - position) : "";
+        remaining.Text = duration > TimeSpan.Zero ? "-" + Ui.Time(duration - position) : Strings.L("Live");
         var fraction = duration > TimeSpan.Zero ? Math.Clamp(position.TotalSeconds / duration.TotalSeconds, 0, 1) : 0;
         barFill.Width = Math.Max(0, bar.ActualWidth * fraction);
     }

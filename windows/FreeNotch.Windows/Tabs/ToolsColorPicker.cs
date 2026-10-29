@@ -8,6 +8,10 @@ internal sealed class ToolsColorPicker : IDisposable
     private const int WmLButtonDown = 0x0201;
     private const int WmLButtonUp = 0x0202;
     private const int VkEscape = 0x1B;
+    private const int IdcCross = 32515;
+    private const uint ImageCursor = 2;
+    private const uint SpiSetCursors = 0x0057;
+    private static readonly uint[] SystemCursors = { 32512, 32513, 32514, 32515, 32649, 32650, 32646, 32642, 32643, 32644, 32645 };
 
     private delegate IntPtr HookProc(int nCode, IntPtr wParam, IntPtr lParam);
 
@@ -55,10 +59,24 @@ internal sealed class ToolsColorPicker : IDisposable
     [DllImport("gdi32.dll")]
     private static extern uint GetPixel(IntPtr dc, int x, int y);
 
+    [DllImport("user32.dll")]
+    private static extern IntPtr LoadCursorW(IntPtr instance, IntPtr name);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr CopyImage(IntPtr image, uint type, int cx, int cy, uint flags);
+
+    [DllImport("user32.dll")]
+    private static extern bool SetSystemCursor(IntPtr cursor, uint id);
+
+    [DllImport("user32.dll")]
+    private static extern bool SystemParametersInfoW(uint action, uint param, IntPtr value, uint winIni);
+
     private readonly HookProc hookProc;
     private IntPtr hook;
     private bool pickReady;
     private PointStruct pickPoint;
+    private bool crosshair;
+    private static bool exitHooked;
 
     public ToolsColorPicker()
     {
@@ -79,6 +97,7 @@ internal sealed class ToolsColorPicker : IDisposable
         {
             hook = IntPtr.Zero;
         }
+        if (hook != IntPtr.Zero) ShowCrosshair();
         return hook != IntPtr.Zero;
     }
 
@@ -87,10 +106,53 @@ internal sealed class ToolsColorPicker : IDisposable
         var current = hook;
         hook = IntPtr.Zero;
         pickReady = false;
+        RestoreCursors();
         if (current == IntPtr.Zero) return;
         try
         {
             UnhookWindowsHookEx(current);
+        }
+        catch
+        {
+        }
+    }
+
+    // Swaps every system cursor for the crosshair while picking; SetSystemCursor takes
+    // ownership of each copy, and SPI_SETCURSORS reloads the user's own scheme afterwards.
+    private void ShowCrosshair()
+    {
+        try
+        {
+            var cross = LoadCursorW(IntPtr.Zero, new IntPtr(IdcCross));
+            if (cross == IntPtr.Zero) return;
+            foreach (var id in SystemCursors)
+            {
+                var copy = CopyImage(cross, ImageCursor, 0, 0, 0);
+                if (copy != IntPtr.Zero && SetSystemCursor(copy, id)) crosshair = true;
+            }
+            if (crosshair && !exitHooked)
+            {
+                exitHooked = true;
+                AppDomain.CurrentDomain.ProcessExit += (_, _) => ResetSystemCursors();
+            }
+        }
+        catch
+        {
+        }
+    }
+
+    private void RestoreCursors()
+    {
+        if (!crosshair) return;
+        crosshair = false;
+        ResetSystemCursors();
+    }
+
+    public static void ResetSystemCursors()
+    {
+        try
+        {
+            SystemParametersInfoW(SpiSetCursors, 0, IntPtr.Zero, 0);
         }
         catch
         {

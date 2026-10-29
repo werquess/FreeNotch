@@ -159,11 +159,6 @@ public sealed class ShelfTab : IslandTab
         SetRowSpan(dropOverlay, 2);
         Children.Add(dropOverlay);
 
-        DragEnter += OnDragOverTab;
-        DragOver += OnDragOverTab;
-        DragLeave += (_, _) => dropOverlay.Visibility = Visibility.Collapsed;
-        Drop += OnDropOnTab;
-
         LoadEntries();
         Rebuild();
     }
@@ -225,9 +220,13 @@ public sealed class ShelfTab : IslandTab
         }
     }
 
-    private void OnDragOverTab(object sender, DragEventArgs e)
+    public static bool CarriesFiles(DragEventArgs e) => e.DataView.Contains(StandardDataFormats.StorageItems);
+
+    public void HideDropZone() => dropOverlay.Visibility = Visibility.Collapsed;
+
+    public void AcceptDrag(DragEventArgs e)
     {
-        if (e.DataView.Contains(StandardDataFormats.StorageItems))
+        if (CarriesFiles(e))
         {
             e.AcceptedOperation = DataPackageOperation.Copy;
             e.DragUIOverride.Caption = T("Add to shelf");
@@ -241,7 +240,24 @@ public sealed class ShelfTab : IslandTab
         e.Handled = true;
     }
 
-    private async void OnDropOnTab(object sender, DragEventArgs e)
+    public void AddPaths(IEnumerable<string> paths)
+    {
+        var changed = false;
+        foreach (var path in paths)
+        {
+            if (string.IsNullOrWhiteSpace(path)) continue;
+            if (entries.Any(existing => string.Equals(existing.Path, path, StringComparison.OrdinalIgnoreCase))) continue;
+            if (Directory.Exists(path)) entries.Add(new ShelfEntry(path, true));
+            else if (File.Exists(path)) entries.Add(new ShelfEntry(path, false));
+            else continue;
+            changed = true;
+        }
+        if (!changed) return;
+        Save();
+        Rebuild();
+    }
+
+    public async void AcceptDrop(DragEventArgs e)
     {
         dropOverlay.Visibility = Visibility.Collapsed;
         if (!e.DataView.Contains(StandardDataFormats.StorageItems)) return;

@@ -19,6 +19,7 @@ public sealed class MediaService
     public bool HasSession => session != null;
     public string Title { get; private set; } = "";
     public string Artist { get; private set; } = "";
+    public string Album { get; private set; } = "";
     public string Source { get; private set; } = "";
     public string SourceId { get; private set; } = "";
     public ImageSource? Artwork { get; private set; }
@@ -80,7 +81,7 @@ public sealed class MediaService
         }
         if (session == null)
         {
-            Title = Artist = Source = SourceId = "";
+            Title = Artist = Album = Source = SourceId = "";
             Artwork = null;
             IsPlaying = false;
             Changed?.Invoke();
@@ -162,6 +163,7 @@ public sealed class MediaService
         if (!ReferenceEquals(current, session)) return;
         Title = props.Title ?? "";
         Artist = string.IsNullOrEmpty(props.Artist) ? props.AlbumArtist ?? "" : props.Artist;
+        Album = props.AlbumTitle ?? "";
         var key = $"{Title}|{Artist}";
         var changedTrack = key != trackKey;
         trackKey = key;

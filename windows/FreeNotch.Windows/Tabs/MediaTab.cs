@@ -29,7 +29,7 @@ public sealed class MediaTab : IslandTab
     public override string Id => "media";
     public override string Glyph => "music-note";
     public override string Title => showingLyrics ? Strings.L("Lyrics") : Strings.L("Media");
-    public override double ContentHeight => 168;
+    public override double ContentHeight => 176;
 
     private void SetLyrics(bool on)
     {

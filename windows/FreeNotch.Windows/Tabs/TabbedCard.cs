@@ -10,7 +10,8 @@ namespace FreeNotch;
 public sealed class TabbedCard : Grid
 {
     public const float CardWidth = 620;
-    private const double BottomPadding = 10;
+    private const double HeaderHeight = 46;
+    private const double BottomPadding = 14;
 
     private readonly TabContext context;
     private readonly List<IslandTab> tabs;
@@ -21,6 +22,7 @@ public sealed class TabbedCard : Grid
     private readonly StackPanel battery = new() { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
     private readonly RowDefinition header = new();
     private readonly ColumnDefinition gap = new();
+    private readonly ShelfTab shelf;
     private IslandTab current;
     private bool active;
 
@@ -44,7 +46,7 @@ public sealed class TabbedCard : Grid
         RowDefinitions.Add(header);
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-        var bar = new Grid { Padding = new Thickness(16, 0, 14, 0) };
+        var bar = new Grid { Padding = new Thickness(18, 4, 16, 0) };
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         bar.ColumnDefinitions.Add(gap);
         bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -93,6 +95,19 @@ public sealed class TabbedCard : Grid
         Children.Add(bar);
         Children.Add(host);
 
+        shelf = tabs.OfType<ShelfTab>().First();
+        Background = new SolidColorBrush(Colors.Transparent);
+        AllowDrop = true;
+        DragEnter += OnDragOver;
+        DragOver += OnDragOver;
+        DragLeave += (_, _) => shelf.HideDropZone();
+        Drop += (_, e) =>
+        {
+            if (!ShelfTab.CarriesFiles(e)) return;
+            e.Handled = true;
+            shelf.AcceptDrop(e);
+        };
+
         current = tabs[0];
         current.Visibility = Visibility.Visible;
         ApplyNotch();
@@ -108,17 +123,31 @@ public sealed class TabbedCard : Grid
         return batteryGlyph;
     }
 
+    // The card floats below the top edge as a drop, so the header no longer leaves room for a notch.
     public void ApplyNotch()
     {
-        header.Height = new GridLength(context.Settings.NotchHeight);
-        gap.Width = new GridLength(context.Settings.NotchWidth + 8);
+        header.Height = new GridLength(HeaderHeight);
+        gap.Width = new GridLength(12);
+    }
+
+    // Files dragged over any tab land on the shelf.
+    private void OnDragOver(object sender, DragEventArgs e)
+    {
+        if (ShelfTab.CarriesFiles(e) && current != shelf) Select(shelf);
+        shelf.AcceptDrag(e);
+    }
+
+    public void AddFiles(IEnumerable<string> paths)
+    {
+        Select(shelf);
+        shelf.AddPaths(paths);
     }
 
     public Vector2 CardSize => SizeOf(current);
 
     public float MaxHeight => tabs.Max(t => SizeOf(t).Y);
 
-    private Vector2 SizeOf(IslandTab tab) => new(CardWidth, (float)(context.Settings.NotchHeight + tab.ContentHeight + BottomPadding));
+    private Vector2 SizeOf(IslandTab tab) => new(CardWidth, (float)(HeaderHeight + tab.ContentHeight + BottomPadding));
 
     public string CurrentId => current.Id;
 
