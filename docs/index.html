@@ -1,0 +1,447 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FreeNotch</title>
+<meta name="description" content="A free, open-source Dynamic Island for your Mac's notch, now on Windows too. Music, lyrics, a file shelf, clipboard history, notes, timers and a better volume HUD.">
+<meta name="theme-color" content="#0b0a10">
+<meta property="og:title" content="FreeNotch">
+<meta property="og:description" content="A free, open-source Dynamic Island for your Mac's notch, now on Windows too.">
+<meta property="og:image" content="https://werquess.github.io/FreeNotch/assets/banner.png">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" type="image/png" href="assets/logo.png">
+<link rel="apple-touch-icon" href="assets/logo.png">
+<link rel="preload" href="fonts/archivo-latin.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body class="os-mac">
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-play" viewBox="0 0 24 24"><polygon points="6 3 20 12 6 21 6 3"/></symbol>
+    <symbol id="i-pause" viewBox="0 0 24 24"><rect x="14" y="4" width="4" height="16" rx="1"/><rect x="6" y="4" width="4" height="16" rx="1"/></symbol>
+    <symbol id="i-next" viewBox="0 0 24 24"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" x2="19" y1="5" y2="19"/></symbol>
+    <symbol id="i-prev" viewBox="0 0 24 24"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" x2="5" y1="19" y2="5"/></symbol>
+    <symbol id="i-music" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></symbol>
+    <symbol id="i-quote" viewBox="0 0 24 24"><path d="M16 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/><path d="M5 3a2 2 0 0 0-2 2v6a2 2 0 0 0 2 2 1 1 0 0 1 1 1v1a2 2 0 0 1-2 2 1 1 0 0 0-1 1v2a1 1 0 0 0 1 1 6 6 0 0 0 6-6V5a2 2 0 0 0-2-2z"/></symbol>
+    <symbol id="i-tray" viewBox="0 0 24 24"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></symbol>
+    <symbol id="i-clipboard" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 9H8"/><path d="M16 13H8"/><path d="M16 17H8"/></symbol>
+    <symbol id="i-lock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></symbol>
+    <symbol id="i-unlock" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 9.9-1"/></symbol>
+    <symbol id="i-timer" viewBox="0 0 24 24"><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></symbol>
+    <symbol id="i-cpu" viewBox="0 0 24 24"><rect width="16" height="16" x="4" y="4" rx="2"/><rect width="6" height="6" x="9" y="9" rx="1"/><path d="M15 2v2M15 20v2M2 15h2M2 9h2M20 15h2M20 9h2M9 2v2M9 20v2"/></symbol>
+    <symbol id="i-vol" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></symbol>
+    <symbol id="i-mute" viewBox="0 0 24 24"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="22" x2="16" y1="9" y2="15"/><line x1="16" x2="22" y1="9" y2="15"/></symbol>
+    <symbol id="i-wrench" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
+    <symbol id="i-camera" viewBox="0 0 24 24"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2m-7.07-17.07 1.41 1.41m11.32 11.32 1.41 1.41M2 12h2m16 0h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></symbol>
+    <symbol id="i-pipette" viewBox="0 0 24 24"><path d="m2 22 1-1h3l9-9"/><path d="M3 21v-3l9-9"/><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z"/></symbol>
+    <symbol id="i-coffee" viewBox="0 0 24 24"><path d="M10 2v2M14 2v2M6 2v2"/><path d="M16 8a1 1 0 0 1 1 1v8a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V9a1 1 0 0 1 1-1h14a4 4 0 1 1 0 8h-1"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-laptop" viewBox="0 0 24 24"><path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"/></symbol>
+    <symbol id="i-monitor" viewBox="0 0 24 24"><rect width="20" height="14" x="2" y="3" rx="2"/><line x1="8" x2="16" y1="21" y2="21"/><line x1="12" x2="12" y1="17" y2="21"/></symbol>
+    <symbol id="i-github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.4 5.4 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 24 24"><path d="M12 20h.01"/><path d="M2 8.82a15 15 0 0 1 20 0"/><path d="M5 12.86a10 10 0 0 1 14 0"/><path d="M8.5 16.43a5 5 0 0 1 7 0"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect width="14" height="14" x="8" y="8" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.09-3.09a2 2 0 0 0-2.82 0L6 21"/></symbol>
+    <symbol id="i-file" viewBox="0 0 24 24"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></symbol>
+    <symbol id="i-link" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></symbol>
+    <symbol id="i-move" viewBox="0 0 24 24"><polyline points="5 9 2 12 5 15"/><polyline points="9 5 12 2 15 5"/><polyline points="15 19 12 22 9 19"/><polyline points="19 9 22 12 19 15"/><line x1="2" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="22"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 22a7 7 0 0 0 7-7c0-2-1-3.9-3-5.5s-3.5-4-4-6.5c-.5 2.5-2 4.9-4 6.5C6 11.1 5 13 5 15a7 7 0 0 0 7 7z"/></symbol>
+    <symbol id="i-contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 18a6 6 0 0 0 0-12v12z"/></symbol>
+    <symbol id="i-replay" viewBox="0 0 24 24"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></symbol>
+    <symbol id="i-flag" viewBox="0 0 24 24"><path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/><line x1="4" x2="4" y1="22" y2="15"/></symbol>
+  </defs>
+</svg>
+
+<a class="skip" href="#main">Skip to content</a>
+
+<main id="main">
+
+<section class="booth" aria-label="FreeNotch">
+  <div class="screen" id="screen">
+
+    <nav class="menubar" aria-label="Site">
+      <a class="menubar-brand" href="#main"><img src="assets/logo.png" alt="" width="18" height="18">FreeNotch</a>
+      <a href="#crate">Try it</a>
+      <a href="#notes">Liner notes</a>
+      <a href="#pressings">Mac &amp; Windows</a>
+      <a href="https://github.com/werquess/FreeNotch" class="hide-sm">GitHub</a>
+      <span class="menubar-status" aria-hidden="true">
+        <svg class="ic"><use href="#i-wifi"/></svg>
+        <span class="menubar-battery"><span></span></span>
+        <svg class="ic"><use href="#i-search"/></svg>
+        <span class="menubar-clock" data-clock></span>
+      </span>
+    </nav>
+
+    <div class="wallpaper" aria-hidden="true"></div>
+
+    <div class="headline">
+      <h1>FreeNotch</h1>
+      <p class="lede">A free, open-source Dynamic Island for your Mac's notch. <span class="nowrap">Now on Windows too.</span></p>
+      <div class="actions">
+        <button class="sticker" type="button" data-download>
+          <svg class="ic"><use href="#i-download"/></svg>
+          <span>Download</span>
+          <span class="sticker-price">free</span>
+        </button>
+        <a class="ghost-link" href="https://github.com/werquess/FreeNotch">
+          <svg class="ic"><use href="#i-github"/></svg>Source on GitHub
+        </a>
+      </div>
+      <p class="meta"><span data-ver-mac>macOS 14+</span><span aria-hidden="true">·</span><span>Windows 11 preview</span><span aria-hidden="true">·</span><span>MIT licensed</span></p>
+    </div>
+
+    <div class="desk-files" aria-hidden="true">
+      <div class="desk-file" data-file="Cover art.png" data-kind="image"><span class="desk-file-icon img"></span><span>Cover art.png</span></div>
+      <div class="desk-file" data-file="Setlist.pdf" data-kind="pdf"><span class="desk-file-icon pdf"></span><span>Setlist.pdf</span></div>
+      <div class="desk-file" data-file="Demos" data-kind="folder"><span class="desk-file-icon folder"></span><span>Demos</span></div>
+    </div>
+
+    <div class="edge-drop" data-edge-drop aria-hidden="true"></div>
+    <button type="button" class="edge-zone" data-edge-zone hidden aria-label="Open FreeNotch from the top edge"></button>
+
+    <div class="island" id="island" tabindex="0" role="button" aria-label="FreeNotch island. Click to open, scroll to change volume." aria-expanded="false">
+      <div class="island-body">
+
+        <div class="compact">
+          <div class="compact-left">
+            <span class="art art-sm" data-art></span>
+            <span class="compact-dot" aria-hidden="true"></span>
+            <svg class="ic compact-vol-ic"><use href="#i-vol"/></svg>
+          </div>
+          <div class="compact-mid">
+            <span class="compact-title" data-title></span>
+            <span class="hud-bar"><span data-hud-fill></span></span>
+          </div>
+          <div class="compact-right">
+            <span class="bars" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="compact-time" data-pomo-compact></span>
+            <span class="compact-pct" data-hud-pct></span>
+          </div>
+        </div>
+
+        <div class="panels">
+          <div class="panel-top">
+            <div class="tabs" role="tablist" aria-label="Island tabs">
+              <button role="tab" data-tab="media" aria-label="Media"><svg class="ic"><use href="#i-music"/></svg></button>
+              <button role="tab" data-tab="shelf" aria-label="Shelf"><svg class="ic"><use href="#i-tray"/></svg></button>
+              <button role="tab" data-tab="clipboard" aria-label="Clipboard"><svg class="ic"><use href="#i-clipboard"/></svg></button>
+              <button role="tab" data-tab="notes" aria-label="Notes"><svg class="ic"><use href="#i-note"/></svg></button>
+              <button role="tab" data-tab="focus" aria-label="Focus"><svg class="ic"><use href="#i-timer"/></svg></button>
+              <button role="tab" data-tab="system" aria-label="System"><svg class="ic"><use href="#i-cpu"/></svg></button>
+              <button role="tab" data-tab="tools" aria-label="Tools"><svg class="ic"><use href="#i-wrench"/></svg></button>
+            </div>
+            <span class="panel-battery"><span class="mini-battery"><span></span></span>86%</span>
+          </div>
+
+          <div class="panel" data-panel="media">
+            <div class="player">
+              <span class="art art-lg" data-art></span>
+              <div class="player-main">
+                <div class="player-head">
+                  <div class="player-text">
+                    <strong data-title></strong>
+                    <span data-artist></span>
+                  </div>
+                  <span class="source"><span class="source-dot"></span><span data-source></span></span>
+                </div>
+                <div class="scrub" data-scrub role="slider" tabindex="0" aria-label="Playback position" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+                  <span class="scrub-fill" data-scrub-fill></span>
+                </div>
+                <div class="player-times"><span data-pos></span><span data-len></span></div>
+                <div class="controls">
+                  <button type="button" data-act="lyrics" class="ctl-quiet" aria-label="Show lyrics"><svg class="ic"><use href="#i-quote"/></svg></button>
+                  <button type="button" data-act="prev" aria-label="Previous track"><svg class="ic ic-fill"><use href="#i-prev"/></svg></button>
+                  <button type="button" data-act="play" class="ctl-main" aria-label="Pause"><svg class="ic ic-fill"><use href="#i-pause" data-play-ic/></svg></button>
+                  <button type="button" data-act="next" aria-label="Next track"><svg class="ic ic-fill"><use href="#i-next"/></svg></button>
+                  <span class="bars bars-lg" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="lyrics">
+            <div class="lyrics-wrap">
+              <div class="lyrics-head">
+                <span class="art art-xs" data-art></span>
+                <span><strong data-title></strong> <span class="dim" data-artist></span></span>
+                <button type="button" class="chip" data-act="media">Player</button>
+              </div>
+              <ol class="lyrics" data-lyrics></ol>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="shelf">
+            <div class="shelf">
+              <div class="dropzone" data-dropzone>
+                <svg class="ic"><use href="#i-tray"/></svg>
+                <span class="dropzone-label">Drop files here</span>
+                <span class="dropzone-hint">Drag a file from the desktop onto the island.</span>
+                <button type="button" class="chip" data-act="sample-file">Add a sample file</button>
+              </div>
+              <ul class="shelf-items" data-shelf></ul>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="clipboard">
+            <ul class="clips" data-clips></ul>
+          </div>
+
+          <div class="panel" data-panel="notes">
+            <div class="notes">
+              <ul class="note-list">
+                <li class="is-on"><strong>Setlist ideas</strong><span>Open with the slow one</span></li>
+                <li><strong>Wi-Fi at the studio</strong><span><svg class="ic"><use href="#i-lock"/></svg>Locked</span></li>
+              </ul>
+              <div class="note-editor">
+                <textarea aria-label="Note text" spellcheck="false">Open with the slow one, then go straight into the loud one.
+Bring the spare cable.</textarea>
+                <div class="note-lock" data-lock-overlay>
+                  <svg class="ic"><use href="#i-lock"/></svg>
+                  <strong>Locked</strong>
+                  <span>Encrypted with AES-GCM. The password is never stored.</span>
+                </div>
+                <button type="button" class="chip chip-lock" data-act="lock"><svg class="ic"><use href="#i-lock"/></svg><span>Lock note</span></button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="focus">
+            <div class="focus">
+              <div class="seg" role="tablist" aria-label="Timer type">
+                <button type="button" role="tab" data-focus="pomo" aria-selected="true">Pomodoro</button>
+                <button type="button" role="tab" data-focus="watch" aria-selected="false">Stopwatch</button>
+              </div>
+              <div class="focus-face">
+                <span class="focus-digits" data-focus-digits>25:00</span>
+                <ol class="laps" data-laps></ol>
+              </div>
+              <div class="focus-ctl">
+                <button type="button" class="chip chip-strong" data-act="focus-start">Start</button>
+                <button type="button" class="chip" data-act="focus-alt">Reset</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="system">
+            <div class="stats">
+              <div class="stat"><span>CPU</span><strong data-stat="cpu"></strong><span class="meter"><span data-meter="cpu"></span></span></div>
+              <div class="stat"><span>Memory</span><strong data-stat="mem"></strong><span class="meter"><span data-meter="mem"></span></span></div>
+              <div class="stat"><span>Temperature</span><strong data-stat="temp"></strong><span class="meter"><span data-meter="temp"></span></span></div>
+              <div class="stat"><span>Fan</span><strong data-stat="fan"></strong><span class="meter"><span data-meter="fan"></span></span></div>
+            </div>
+            <p class="demo-note">Demo values. The app reads your Mac's real sensors.</p>
+          </div>
+
+          <div class="panel" data-panel="hud">
+            <div class="hudpanel">
+              <button type="button" class="hud-mute" data-act="mute" aria-label="Mute"><svg class="ic"><use href="#i-vol" data-mute-ic/></svg></button>
+              <input type="range" min="0" max="100" step="1" data-vol aria-label="Volume">
+              <strong class="hud-num" data-hud-num></strong>
+            </div>
+            <p class="demo-note">Scroll on the island or press the arrow keys. FreeNotch can replace the system volume overlay entirely.</p>
+          </div>
+
+          <div class="panel" data-panel="tools">
+            <div class="tools">
+              <button type="button" class="tool" data-act="mirror">
+                <span class="tool-face" data-mirror-face><svg class="ic"><use href="#i-camera"/></svg><video data-mirror muted playsinline></video></span>
+                <strong>Mirror</strong><span data-mirror-state>Uses your camera</span>
+              </button>
+              <button type="button" class="tool" data-act="awake">
+                <span class="tool-face"><svg class="ic"><use href="#i-sun"/></svg></span>
+                <strong>Keep Awake</strong><span data-awake-state>Off</span>
+              </button>
+              <button type="button" class="tool" data-act="pick">
+                <span class="tool-face" data-swatch><svg class="ic"><use href="#i-pipette"/></svg></span>
+                <strong>Color Picker</strong><span data-pick-state>Pick from screen</span>
+              </button>
+              <input type="color" class="visually-hidden" data-color-fallback tabindex="-1" aria-hidden="true">
+            </div>
+          </div>
+
+          <div class="panel" data-panel="themes">
+            <div class="themes">
+              <button type="button" class="theme-opt" data-theme="smoke"><span class="theme-swatch smoke"></span><strong>Smoke</strong></button>
+              <button type="button" class="theme-opt" data-theme="oled"><span class="theme-swatch oled"></span><strong>OLED</strong></button>
+            </div>
+          </div>
+
+          <div class="panel" data-panel="drop">
+            <div class="drop-info">
+              <svg class="ic"><use href="#i-drop"/></svg>
+              <p>Nothing sits on your screen. Move the pointer to the top edge and a drop spreads out, then falls into this card. Settings choose whether it opens on hover or on click.</p>
+              <button type="button" class="chip chip-strong" data-act="replay"><svg class="ic"><use href="#i-replay"/></svg>Play the drop</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="taskbar" aria-label="Site">
+      <span class="taskbar-apps" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span class="taskbar-links">
+        <a href="#notes">Liner notes</a>
+        <a href="#pressings">Mac &amp; Windows</a>
+        <a href="https://github.com/werquess/FreeNotch">GitHub</a>
+      </span>
+      <span class="taskbar-clock" data-clock aria-hidden="true"></span>
+    </div>
+
+    <div class="os-switch" role="radiogroup" aria-label="Play it on">
+      <span class="os-switch-label">Play it on</span>
+      <button type="button" role="radio" aria-checked="true" data-os="mac"><svg class="ic"><use href="#i-laptop"/></svg>macOS</button>
+      <button type="button" role="radio" aria-checked="false" data-os="win"><svg class="ic"><use href="#i-monitor"/></svg>Windows</button>
+    </div>
+
+    <div class="toast" data-toast role="status" aria-live="polite"></div>
+  </div>
+
+  <div class="crate" id="crate">
+    <div class="crate-bin">
+      <div class="sleeves" role="list" data-sleeves></div>
+    </div>
+    <div class="crate-lip">
+      <p class="crate-hint">Pull a record to play it on the island.</p>
+    </div>
+  </div>
+</section>
+
+<section class="notes-sec" id="notes" aria-labelledby="notes-title">
+  <div class="sleeve-back">
+    <div class="credits">
+      <h2 id="notes-title">Liner notes</h2>
+      <dl class="credit-list">
+        <div><dt>Free, all the way</dt><dd>MIT licensed and open source. No ads, no account, no subscription, no tracking.</dd></div>
+        <div><dt>Easy on the battery</dt><dd>It reacts to system events instead of polling. With the island closed and nothing playing, it uses effectively zero CPU.</dd></div>
+        <div><dt>Stays on your machine</dt><dd>No analytics, no telemetry. It only goes online for lyrics from LRCLIB, album artwork and update checks you can turn off.</dd></div>
+        <div><dt>Native, not a web view</dt><dd>Swift, SwiftUI and AppKit on the Mac. C# and WinUI on Windows. Spring animations and a shape that matches the hardware notch.</dd></div>
+      </dl>
+    </div>
+    <figure class="live-take">
+      <img src="assets/open.gif" alt="Recording of FreeNotch opening from the MacBook notch" loading="lazy" width="1280" height="720">
+      <figcaption>These clips were recorded from the real app on a MacBook.</figcaption>
+    </figure>
+  </div>
+
+  <div class="takes" role="list">
+    <figure class="take take-tall" role="listitem"><img src="assets/shelf.gif" alt="Dragging files onto the shelf" loading="lazy"><figcaption>A drop zone slides out when you drag</figcaption></figure>
+    <figure class="take" role="listitem"><img src="assets/lyrics.gif" alt="Synced lyrics scrolling with the song" loading="lazy"><figcaption>Lyrics that scroll with the song</figcaption></figure>
+    <figure class="take" role="listitem"><img src="assets/system.gif" alt="CPU, memory, temperature and fan stats" loading="lazy"><figcaption>Temperature in °C, fan in RPM</figcaption></figure>
+    <figure class="take take-wide" role="listitem"><img src="assets/hud.gif" alt="Volume HUD in the notch" loading="lazy"><figcaption>The volume HUD, in the notch</figcaption></figure>
+  </div>
+</section>
+
+<section class="pressings" id="pressings" aria-labelledby="pressings-title">
+  <h2 id="pressings-title">Two pressings</h2>
+  <p class="pressings-lede">The Mac version is the full record. The Windows version is a preview pressing that grows with every release.</p>
+  <div class="press-table" role="table" aria-label="Features by platform">
+    <div class="press-row press-head" role="row">
+      <span role="columnheader">Track</span>
+      <span role="columnheader">macOS</span>
+      <span role="columnheader">Windows</span>
+    </div>
+    <div class="press-row" role="row"><span role="cell">Now playing, artwork and controls</span><span role="cell" class="yes">Yes</span><span role="cell" class="yes">Yes</span></div>
+    <div class="press-row" role="row"><span role="cell">Volume HUD that replaces the system one</span><span role="cell" class="yes">Yes</span><span role="cell" class="yes">Yes</span></div>
+    <div class="press-row" role="row"><span role="cell">Opens from the top edge on hover or click</span><span role="cell" class="dim">Lives in the notch</span><span role="cell" class="yes">Yes</span></div>
+    <div class="press-row" role="row"><span role="cell">Place the island anywhere</span><span role="cell" class="dim">Lives in the notch</span><span role="cell" class="soon">Coming later</span></div>
+    <div class="press-row" role="row"><span role="cell">Themes</span><span role="cell" class="yes">OLED, Graphite, Liquid Glass, Frosted</span><span role="cell" class="yes">Smoke, OLED</span></div>
+    <div class="press-row" role="row"><span role="cell">Synced lyrics</span><span role="cell" class="yes">Yes</span><span role="cell" class="soon">Coming</span></div>
+    <div class="press-row" role="row"><span role="cell">Shelf and drop zone</span><span role="cell" class="yes">Yes, with AirDrop</span><span role="cell" class="soon">Coming</span></div>
+    <div class="press-row" role="row"><span role="cell">Clipboard history</span><span role="cell" class="yes">Yes</span><span role="cell" class="soon">Coming</span></div>
+    <div class="press-row" role="row"><span role="cell">Encrypted notes</span><span role="cell" class="yes">Yes</span><span role="cell" class="soon">Coming</span></div>
+    <div class="press-row" role="row"><span role="cell">Pomodoro and stopwatch</span><span role="cell" class="yes">Yes</span><span role="cell" class="soon">Coming</span></div>
+    <div class="press-row" role="row"><span role="cell">System stats</span><span role="cell" class="yes">Yes</span><span role="cell" class="soon">Coming</span></div>
+    <div class="press-row" role="row"><span role="cell">Mirror, Keep Awake, Color Picker</span><span role="cell" class="yes">Yes</span><span role="cell" class="soon">Coming</span></div>
+    <div class="press-row" role="row"><span role="cell">Requires</span><span role="cell">macOS 14+, Apple Silicon</span><span role="cell">Windows 11, x64 or ARM64</span></div>
+  </div>
+</section>
+
+<section class="closer" aria-labelledby="closer-title">
+  <div class="closer-sleeve">
+    <h2 id="closer-title">Take it home.</h2>
+    <p>It's a single download with no account, and the Mac version keeps itself up to date.</p>
+    <button class="sticker sticker-xl" type="button" data-download>
+      <svg class="ic"><use href="#i-download"/></svg>
+      <span>Download FreeNotch</span>
+      <span class="sticker-price">free</span>
+    </button>
+  </div>
+</section>
+
+</main>
+
+<footer class="fineprint">
+  <p>Written and produced by Oğuz Mete. Released under the MIT License.</p>
+  <p class="fineprint-links">
+    <a href="https://github.com/werquess/FreeNotch">GitHub</a>
+    <a href="https://github.com/werquess/FreeNotch/releases">All releases</a>
+    <a href="https://github.com/werquess/FreeNotch/blob/main/CHANGELOG.md">Changelog</a>
+    <a href="https://buymeacoffee.com/werquess" class="coffee"><svg class="ic"><use href="#i-coffee"/></svg>Buy me a coffee</a>
+  </p>
+  <p class="dim">Tracks, lyrics and stats in the demo above are made up for the demo.</p>
+</footer>
+
+<dialog class="dl" id="download" aria-labelledby="dl-title">
+  <form method="dialog" class="dl-inner">
+    <div class="dl-head">
+      <h2 id="dl-title">Download FreeNotch</h2>
+      <button class="dl-close" value="close" aria-label="Close"><svg class="ic"><use href="#i-x"/></svg></button>
+    </div>
+
+    <fieldset class="dl-step">
+      <legend>Your system</legend>
+      <div class="dl-choices">
+        <label class="dl-choice">
+          <input type="radio" name="os" value="mac">
+          <svg class="ic"><use href="#i-laptop"/></svg>
+          <span><strong>macOS</strong><small data-dl-mac-ver>Version 1.0.7</small></span>
+        </label>
+        <label class="dl-choice">
+          <input type="radio" name="os" value="win">
+          <svg class="ic"><use href="#i-monitor"/></svg>
+          <span><strong>Windows</strong><small data-dl-win-ver>Preview 0.1.0</small></span>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset class="dl-step" data-dl-arch>
+      <legend>Your processor</legend>
+      <div class="dl-choices">
+        <label class="dl-choice">
+          <input type="radio" name="arch" value="x64" checked>
+          <span><strong>x64</strong><small>Intel and AMD, most PCs</small></span>
+        </label>
+        <label class="dl-choice">
+          <input type="radio" name="arch" value="arm64">
+          <span><strong>ARM64</strong><small>Snapdragon and other ARM PCs</small></span>
+        </label>
+      </div>
+    </fieldset>
+
+    <div class="dl-get">
+      <a class="sticker sticker-wide" data-dl-link href="https://github.com/werquess/FreeNotch/releases/latest/download/FreeNotch.dmg">
+        <svg class="ic"><use href="#i-download"/></svg>
+        <span data-dl-file>FreeNotch.dmg</span>
+        <span class="sticker-price" data-dl-size></span>
+      </a>
+      <p class="dl-note" data-dl-note></p>
+    </div>
+
+    <p class="dl-foot">
+      <a href="https://github.com/werquess/FreeNotch/releases">See all releases</a>
+      <a href="https://buymeacoffee.com/werquess" class="coffee"><svg class="ic"><use href="#i-coffee"/></svg>Buy me a coffee</a>
+    </p>
+  </form>
+</dialog>
+
+<script src="app.js" defer></script>
+</body>
+</html>
