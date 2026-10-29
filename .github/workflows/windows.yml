@@ -34,3 +34,31 @@ jobs:
         with:
           name: FreeNotch-Windows-${{ matrix.arch }}
           path: out/FreeNotch
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Publish to Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(sed -n 's:.*<Version>\(.*\)</Version>.*:\1:p' windows/FreeNotch.Windows/FreeNotch.Windows.csproj)
+          tag="windows-v$version"
+          for arch in x64 arm64; do
+            (cd "artifacts/FreeNotch-Windows-$arch" && mkdir -p ../pkg-$arch/FreeNotch && cp -r . ../pkg-$arch/FreeNotch && cd ../pkg-$arch && zip -qry "../FreeNotch-Windows-$arch.zip" FreeNotch)
+          done
+          if ! gh release view "$tag" >/dev/null 2>&1; then
+            gh release create "$tag" --target "$GITHUB_SHA" --prerelease --latest=false \
+              --title "FreeNotch for Windows $version (Preview)" \
+              --notes "Preview build of FreeNotch for Windows $version. Download FreeNotch-Windows-x64.zip for most PCs or FreeNotch-Windows-arm64.zip for ARM PCs, unzip it and run FreeNotch.exe. Windows 11 required. The app is not signed yet, so SmartScreen may warn: choose More info, then Run anyway."
+          fi
+          gh release upload "$tag" artifacts/FreeNotch-Windows-x64.zip artifacts/FreeNotch-Windows-arm64.zip --clobber

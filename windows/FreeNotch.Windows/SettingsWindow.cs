@@ -45,17 +45,9 @@ public sealed class SettingsWindow : Window
         delay.ThumbToolTipValueConverter = new MillisecondsConverter();
         delay.ValueChanged += (_, e) => island.SetHoverDelay((int)e.NewValue);
 
-        var edge = new ComboBox { Header = Strings.L("Position on the top edge"), MinWidth = 200 };
-        edge.Items.Add(Strings.L("Left"));
-        edge.Items.Add(Strings.L("Center"));
-        edge.Items.Add(Strings.L("Right"));
-        edge.SelectedIndex = (int)settings.Edge;
-        edge.SelectionChanged += (_, _) => island.SetEdge((EdgePosition)edge.SelectedIndex);
-
         stack.Children.Add(Card(
             open,
             delay,
-            edge,
             Hint(Strings.L("Move your pointer to the top edge of the screen and the drop appears."))));
 
         stack.Children.Add(Header(Strings.L("Appearance")));

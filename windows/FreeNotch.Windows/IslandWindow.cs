@@ -128,13 +128,7 @@ public sealed class IslandWindow : Window
         var display = DisplayArea.Primary;
         screen = display.OuterBounds;
         scale = Native.GetDpiForWindow(hwnd) / 96.0;
-        var side = (int)((CardSize.X / 2 + 24) * scale);
-        anchorX = settings.Edge switch
-        {
-            EdgePosition.Left => screen.X + side,
-            EdgePosition.Right => screen.X + screen.Width - side,
-            _ => screen.X + screen.Width / 2,
-        };
+        anchorX = screen.X + screen.Width / 2;
     }
 
     private void PlaceTop(Vector2 room)
@@ -368,15 +362,6 @@ public sealed class IslandWindow : Window
     {
         settings.HoverDelay = ms;
         settings.Save();
-    }
-
-    public void SetEdge(EdgePosition edge)
-    {
-        settings.Edge = edge;
-        settings.Save();
-        if (phase == Phase.Card) Close();
-        Locate();
-        Preview(phase == Phase.Hidden ? 50 : 700);
     }
 
     public void Shutdown()
