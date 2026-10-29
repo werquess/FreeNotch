@@ -32,6 +32,7 @@ public sealed class TabContext
     public Action? RequestClose { get; set; }
     public Action<string>? RequestTab { get; set; }
     public Action<string>? OpenTab { get; set; }
+    public Action? OpenSettings { get; set; }
 }
 
 public abstract class IslandTab : Grid

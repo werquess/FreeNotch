@@ -20,6 +20,7 @@ public sealed class MediaService
     public string Title { get; private set; } = "";
     public string Artist { get; private set; } = "";
     public string Source { get; private set; } = "";
+    public string SourceId { get; private set; } = "";
     public ImageSource? Artwork { get; private set; }
     public bool IsPlaying { get; private set; }
     public TimeSpan Duration { get; private set; }
@@ -79,7 +80,7 @@ public sealed class MediaService
         }
         if (session == null)
         {
-            Title = Artist = Source = "";
+            Title = Artist = Source = SourceId = "";
             Artwork = null;
             IsPlaying = false;
             Changed?.Invoke();
@@ -132,6 +133,7 @@ public sealed class MediaService
             IsPlaying = playing;
         }
         Source = SourceName(session.SourceAppUserModelId);
+        SourceId = session.SourceAppUserModelId ?? "";
     }
 
     private void ReadTimeline()

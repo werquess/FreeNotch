@@ -1,5 +1,6 @@
 using System.Numerics;
 using Microsoft.UI;
+using Microsoft.UI.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -8,13 +9,18 @@ namespace FreeNotch;
 
 public sealed class TabbedCard : Grid
 {
-    public const float CardWidth = 580;
-    private const double StripHeight = 40;
-    private const double BottomPadding = 14;
+    public const float CardWidth = 620;
+    private const double BottomPadding = 10;
 
+    private readonly TabContext context;
     private readonly List<IslandTab> tabs;
     private readonly List<Button> buttons = new();
     private readonly Grid host = new();
+    private readonly TextBlock title = Ui.Text("", 12, FontWeights.SemiBold, 150);
+    private readonly TextBlock batteryText = Ui.Text("", 11, FontWeights.SemiBold, 170);
+    private readonly StackPanel battery = new() { Orientation = Orientation.Horizontal, Spacing = 4, VerticalAlignment = VerticalAlignment.Center };
+    private readonly RowDefinition header = new();
+    private readonly ColumnDefinition gap = new();
     private IslandTab current;
     private bool active;
 
@@ -22,10 +28,10 @@ public sealed class TabbedCard : Grid
 
     public TabbedCard(TabContext context)
     {
+        this.context = context;
         tabs = new List<IslandTab>
         {
             new MediaTab(context),
-            new LyricsTab(context),
             new ShelfTab(context),
             new ClipboardTab(context),
             new NotesTab(context),
@@ -35,25 +41,24 @@ public sealed class TabbedCard : Grid
         };
         context.RequestTab = Select;
 
-        RowDefinitions.Add(new RowDefinition { Height = new GridLength(StripHeight) });
+        RowDefinitions.Add(header);
         RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
 
-        var strip = new StackPanel
-        {
-            Orientation = Orientation.Horizontal,
-            Spacing = 2,
-            Padding = new Thickness(16, 8, 16, 0),
-            VerticalAlignment = VerticalAlignment.Center,
-        };
+        var bar = new Grid { Padding = new Thickness(16, 0, 14, 0) };
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        bar.ColumnDefinitions.Add(gap);
+        bar.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var strip = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 1, VerticalAlignment = VerticalAlignment.Center };
         foreach (var tab in tabs)
         {
             var button = new Button
             {
-                Content = Ui.Icon(tab.Glyph, 14, 200),
-                Width = 34,
-                Height = 28,
+                Content = Ui.Icon(tab.Glyph, 12, 180),
+                Width = 28,
+                Height = 22,
                 Padding = new Thickness(0),
-                CornerRadius = new CornerRadius(8),
+                CornerRadius = new CornerRadius(11),
                 Background = new SolidColorBrush(Colors.Transparent),
                 BorderThickness = new Thickness(0),
             };
@@ -67,21 +72,53 @@ public sealed class TabbedCard : Grid
             tab.Visibility = Visibility.Collapsed;
             host.Children.Add(tab);
         }
-        SetRow(strip, 0);
+        SetColumn(strip, 0);
+        bar.Children.Add(strip);
+
+        var right = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center };
+        title.VerticalAlignment = VerticalAlignment.Center;
+        right.Children.Add(title);
+        battery.Children.Add(batteryText);
+        battery.Children.Add(BatteryIcon());
+        right.Children.Add(battery);
+        var gear = Ui.IconButton("gear-six", 11, 22, () => context.OpenSettings?.Invoke());
+        gear.Opacity = 0.75;
+        ToolTipService.SetToolTip(gear, Strings.L("Settings…").TrimEnd('…'));
+        right.Children.Add(gear);
+        SetColumn(right, 2);
+        bar.Children.Add(right);
+
+        SetRow(bar, 0);
         SetRow(host, 1);
-        Children.Add(strip);
+        Children.Add(bar);
         Children.Add(host);
 
         current = tabs[0];
         current.Visibility = Visibility.Visible;
+        ApplyNotch();
         Highlight();
+    }
+
+    private GlyphIcon batteryGlyph = new();
+
+    private FrameworkElement BatteryIcon()
+    {
+        batteryGlyph = Ui.Icon("battery-full", 14, 200);
+        batteryGlyph.VerticalAlignment = VerticalAlignment.Center;
+        return batteryGlyph;
+    }
+
+    public void ApplyNotch()
+    {
+        header.Height = new GridLength(context.Settings.NotchHeight);
+        gap.Width = new GridLength(context.Settings.NotchWidth + 8);
     }
 
     public Vector2 CardSize => SizeOf(current);
 
     public float MaxHeight => tabs.Max(t => SizeOf(t).Y);
 
-    private static Vector2 SizeOf(IslandTab tab) => new(CardWidth, (float)(StripHeight + tab.ContentHeight + BottomPadding));
+    private Vector2 SizeOf(IslandTab tab) => new(CardWidth, (float)(context.Settings.NotchHeight + tab.ContentHeight + BottomPadding));
 
     public string CurrentId => current.Id;
 
@@ -108,16 +145,42 @@ public sealed class TabbedCard : Grid
         for (var i = 0; i < tabs.Count; i++)
         {
             var on = tabs[i] == current;
-            buttons[i].Background = on ? Ui.White(30) : new SolidColorBrush(Colors.Transparent);
-            if (buttons[i].Content is FontIcon icon) icon.Foreground = Ui.White(on ? (byte)255 : (byte)150);
+            buttons[i].Background = on ? Ui.White(235) : new SolidColorBrush(Colors.Transparent);
+            if (buttons[i].Content is GlyphIcon icon)
+            {
+                icon.Foreground = on ? new SolidColorBrush(Colors.Black) : Ui.White(180);
+            }
         }
+        title.Text = current.Title;
     }
+
+    private void RefreshBattery()
+    {
+        if (!SystemTab.HasBattery)
+        {
+            battery.Visibility = Visibility.Collapsed;
+            return;
+        }
+        var (percent, charging) = SystemTab.Battery();
+        battery.Visibility = Visibility.Visible;
+        batteryText.Text = $"{percent}%";
+        batteryGlyph.Glyph = charging ? "lightning" : "battery-full";
+    }
+
+    public string? CurrentTabId => current.Id;
 
     public void SetActive(bool on)
     {
         if (on == active) return;
         active = on;
-        if (on) current.OnShown();
-        else current.OnHidden();
+        if (on)
+        {
+            RefreshBattery();
+            current.OnShown();
+        }
+        else
+        {
+            current.OnHidden();
+        }
     }
 }

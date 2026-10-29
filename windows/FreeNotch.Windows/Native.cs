@@ -141,6 +141,44 @@ internal static class Native
     [DllImport("user32.dll")]
     public static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
 
+    public delegate IntPtr SubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam, IntPtr id, IntPtr data);
+    public delegate void WinEventProc(IntPtr hook, uint eventType, IntPtr hwnd, int idObject, int idChild, uint thread, uint time);
+
+    [DllImport("comctl32.dll")]
+    public static extern bool SetWindowSubclass(IntPtr hWnd, SubclassProc proc, IntPtr id, IntPtr data);
+
+    [DllImport("comctl32.dll")]
+    public static extern IntPtr DefSubclassProc(IntPtr hWnd, uint msg, IntPtr wParam, IntPtr lParam);
+
+    [StructLayout(LayoutKind.Sequential)]
+    public struct MARGINS
+    {
+        public int Left;
+        public int Right;
+        public int Top;
+        public int Bottom;
+    }
+
+    [DllImport("dwmapi.dll")]
+    public static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS margins);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr SetWinEventHook(uint eventMin, uint eventMax, IntPtr module, WinEventProc proc, uint process, uint thread, uint flags);
+
+    [DllImport("user32.dll")]
+    public static extern bool UnhookWinEvent(IntPtr hook);
+
+    [DllImport("user32.dll")]
+    public static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll")]
+    public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint processId);
+
+    public const uint EVENT_SYSTEM_FOREGROUND = 0x0003;
+    public const uint WINEVENT_OUTOFCONTEXT = 0x0000;
+    public const uint WM_NCCALCSIZE = 0x0083;
+    public const int DWMWA_USE_HOSTBACKDROPBRUSH = 17;
+
     [DllImport("gdi32.dll")]
     public static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int w, int h);
 
@@ -205,6 +243,15 @@ internal static class Native
     [DllImport("user32.dll")]
     public static extern bool DestroyMenu(IntPtr hMenu);
 
+    private static readonly SubclassProc FramelessProc = (hWnd, msg, wParam, lParam, id, data) =>
+        msg == WM_NCCALCSIZE && wParam != IntPtr.Zero ? IntPtr.Zero : DefSubclassProc(hWnd, msg, wParam, lParam);
+
+    public static void MakeFrameless(IntPtr hwnd)
+    {
+        SetWindowSubclass(hwnd, FramelessProc, new IntPtr(0x464E), IntPtr.Zero);
+        RemoveFrame(hwnd);
+    }
+
     public static void SetToolWindow(IntPtr hwnd)
     {
         var style = (long)GetWindowLongPtr(hwnd, GWL_EXSTYLE);
@@ -222,5 +269,9 @@ internal static class Native
         DwmSetWindowAttribute(hwnd, DWMWA_WINDOW_CORNER_PREFERENCE, ref corner, sizeof(int));
         var border = DWMWA_COLOR_NONE;
         DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR, ref border, sizeof(int));
+        var host = 1;
+        DwmSetWindowAttribute(hwnd, DWMWA_USE_HOSTBACKDROPBRUSH, ref host, sizeof(int));
+        var margins = new MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };
+        DwmExtendFrameIntoClientArea(hwnd, ref margins);
     }
 }

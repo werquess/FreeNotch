@@ -22,7 +22,6 @@ public sealed class SystemTab : IslandTab
             ["Charging"] = "Şarj oluyor",
             ["On battery"] = "Pilde",
             ["Plugged in"] = "Fişe takılı",
-            ["No battery"] = "Pil yok",
             ["GB free of {0} GB"] = "GB boş / {0} GB",
             ["Up {0}"] = "Açık kalma süresi {0}",
             ["{0} processes"] = "{0} işlem",
@@ -37,7 +36,6 @@ public sealed class SystemTab : IslandTab
             ["Charging"] = "Lädt",
             ["On battery"] = "Akkubetrieb",
             ["Plugged in"] = "Angeschlossen",
-            ["No battery"] = "Kein Akku",
             ["GB free of {0} GB"] = "GB frei von {0} GB",
             ["Up {0}"] = "Laufzeit {0}",
             ["{0} processes"] = "{0} Prozesse",
@@ -52,7 +50,6 @@ public sealed class SystemTab : IslandTab
             ["Charging"] = "Cargando",
             ["On battery"] = "Con batería",
             ["Plugged in"] = "Conectado",
-            ["No battery"] = "Sin batería",
             ["GB free of {0} GB"] = "GB libres de {0} GB",
             ["Up {0}"] = "Activo {0}",
             ["{0} processes"] = "{0} procesos",
@@ -67,7 +64,6 @@ public sealed class SystemTab : IslandTab
             ["Charging"] = "En charge",
             ["On battery"] = "Sur batterie",
             ["Plugged in"] = "Branché",
-            ["No battery"] = "Pas de batterie",
             ["GB free of {0} GB"] = "Go libres sur {0} Go",
             ["Up {0}"] = "Actif depuis {0}",
             ["{0} processes"] = "{0} processus",
@@ -131,10 +127,10 @@ public sealed class SystemTab : IslandTab
 
         public StatBlock(string label)
         {
-            number = Ui.Text("–", 26, FontWeights.Bold);
+            number = Ui.Text("–", 24, FontWeights.SemiBold);
             detail = Ui.Text(" ", 11, FontWeights.Normal, 130);
 
-            var meter = new Grid { Height = 4, Margin = new Thickness(0, 6, 0, 0) };
+            var meter = new Grid { Height = 4, Margin = new Thickness(0, 8, 0, 0) };
             meter.ColumnDefinitions.Add(fillColumn);
             meter.ColumnDefinitions.Add(restColumn);
             meter.Children.Add(new Border
@@ -151,14 +147,22 @@ public sealed class SystemTab : IslandTab
             meter.Children.Add(fill);
             SetFraction(0);
 
-            Root = new StackPanel { Spacing = 0 };
-            Root.Children.Add(Ui.Text(label, 11, FontWeights.SemiBold, 150));
-            Root.Children.Add(number);
-            Root.Children.Add(detail);
-            Root.Children.Add(meter);
+            var content = new StackPanel { Spacing = 0 };
+            content.Children.Add(Ui.Text(label, 11, FontWeights.SemiBold, 150));
+            content.Children.Add(number);
+            content.Children.Add(detail);
+            content.Children.Add(meter);
+
+            Root = new Border
+            {
+                CornerRadius = new CornerRadius(14),
+                Background = Ui.White(14),
+                Padding = new Thickness(14, 12, 14, 12),
+                Child = content,
+            };
         }
 
-        public StackPanel Root { get; }
+        public Border Root { get; }
 
         public void Set(string bigText, string detailText, double fraction)
         {
@@ -175,10 +179,32 @@ public sealed class SystemTab : IslandTab
         }
     }
 
+    public static bool HasBattery => !IsBatteryAbsent(ReadPower(out var power) ? power : (PowerStatus?)null);
+
+    public static (int Percent, bool Charging) Battery()
+    {
+        if (!ReadPower(out var power) || IsBatteryAbsent(power) || power.BatteryLifePercent > 100) return (0, false);
+        var charging = (power.BatteryFlag & 8) != 0;
+        return (power.BatteryLifePercent, charging);
+    }
+
+    private static bool ReadPower(out PowerStatus power) => GetSystemPowerStatus(out power);
+
+    private static bool IsBatteryAbsent(PowerStatus? power)
+    {
+        if (power is null) return true;
+        var value = power.Value;
+        if (value.BatteryFlag == 128) return true;
+        return value.BatteryFlag == 255 && value.BatteryLifePercent == 255;
+    }
+
     private readonly StatBlock cpuBlock;
     private readonly StatBlock memoryBlock;
     private readonly StatBlock batteryBlock;
     private readonly StatBlock diskBlock;
+    private readonly Grid statGrid;
+    private bool showsBattery;
+    private bool gridBuilt;
     private readonly TextBlock uptimeText;
     private readonly TextBlock processText;
     private readonly string systemRoot = Path.GetPathRoot(Environment.SystemDirectory) ?? "C:\\";
@@ -199,16 +225,11 @@ public sealed class SystemTab : IslandTab
         batteryBlock = new StatBlock(T("Battery"));
         diskBlock = new StatBlock(T("Disk"));
 
-        var blocks = new[] { cpuBlock, memoryBlock, batteryBlock, diskBlock };
-        var row = new Grid { ColumnSpacing = 16, VerticalAlignment = VerticalAlignment.Center };
-        for (var index = 0; index < blocks.Length; index++)
-        {
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            Grid.SetColumn(blocks[index].Root, index);
-            row.Children.Add(blocks[index].Root);
-        }
-        Grid.SetRow(row, 0);
-        Children.Add(row);
+        statGrid = new Grid { ColumnSpacing = 10, VerticalAlignment = VerticalAlignment.Center };
+        showsBattery = HasBattery;
+        BuildStatGrid();
+        Grid.SetRow(statGrid, 0);
+        Children.Add(statGrid);
 
         uptimeText = Ui.Text(" ", 12, FontWeights.Normal, 150);
         processText = Ui.Text(" ", 12, FontWeights.Normal, 150);
@@ -224,12 +245,34 @@ public sealed class SystemTab : IslandTab
     }
 
     public override string Id => "system";
-    public override string Glyph => "\uE950";
+    public override string Glyph => "gauge";
     public override string Title => T("System");
-    public override double ContentHeight => 150;
+    public override double ContentHeight => 160;
+
+    private void BuildStatGrid()
+    {
+        statGrid.Children.Clear();
+        statGrid.ColumnDefinitions.Clear();
+        var blocks = showsBattery
+            ? new[] { cpuBlock, memoryBlock, batteryBlock, diskBlock }
+            : new[] { cpuBlock, memoryBlock, diskBlock };
+        for (var index = 0; index < blocks.Length; index++)
+        {
+            statGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            Grid.SetColumn(blocks[index].Root, index);
+            statGrid.Children.Add(blocks[index].Root);
+        }
+        gridBuilt = true;
+    }
 
     public override void OnShown()
     {
+        var batteryNow = HasBattery;
+        if (!gridBuilt || batteryNow != showsBattery)
+        {
+            showsBattery = batteryNow;
+            BuildStatGrid();
+        }
         hasPreviousTimes = false;
         tickCount = 0;
         Refresh();
@@ -251,7 +294,7 @@ public sealed class SystemTab : IslandTab
     {
         RefreshCpu();
         RefreshMemory();
-        RefreshBattery();
+        if (showsBattery) RefreshBattery();
         if (tickCount % 5 == 0)
         {
             RefreshDisk();
@@ -294,9 +337,9 @@ public sealed class SystemTab : IslandTab
 
     private void RefreshBattery()
     {
-        if (!GetSystemPowerStatus(out var power) || power.BatteryFlag == 128 || power.BatteryLifePercent > 100)
+        if (!GetSystemPowerStatus(out var power) || IsBatteryAbsent(power) || power.BatteryLifePercent > 100)
         {
-            batteryBlock.Set("–", T("No battery"), 0);
+            batteryBlock.Set("–", " ", 0);
             return;
         }
         var fraction = power.BatteryLifePercent / 100.0;

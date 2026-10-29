@@ -303,7 +303,7 @@ public sealed class NotesTab : IslandTab
     }
 
     public override string Id => "notes";
-    public override string Glyph => "";
+    public override string Glyph => "note";
     public override string Title => T("Notes");
     public override double ContentHeight => 240;
 

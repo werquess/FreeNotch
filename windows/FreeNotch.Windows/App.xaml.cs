@@ -28,6 +28,7 @@ public partial class App : Application
         settings = Settings.Load();
         var media = new MediaService(DispatcherQueue.GetForCurrentThread());
         island = new IslandWindow(settings, media);
+        island.OpenSettings = ShowSettings;
 
         tray = new TrayIcon("FreeNotch", Path.Combine(AppContext.BaseDirectory, "Assets", "FreeNotch.ico"))
         {

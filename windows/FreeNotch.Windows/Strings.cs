@@ -8,6 +8,13 @@ public static class Strings
     {
         ["tr"] = new()
         {
+            ["Notch"] = "Çentik",
+            ["Notch width"] = "Çentik genişliği",
+            ["Notch height"] = "Çentik yüksekliği",
+            ["Show music in the notch"] = "Müziği çentikte göster",
+            ["Show timers in the notch"] = "Zamanlayıcıları çentikte göster",
+            ["While music plays or a timer runs, a small notch stays at the top. It hides while the playing app is in front."] = "Müzik çalarken ya da bir zamanlayıcı çalışırken üstte küçük bir çentik kalır. Çalan uygulama öndeyken gizlenir.",
+            ["Lyrics"] = "Şarkı sözleri",
             ["Nothing is playing"] = "Şu an bir şey çalmıyor",
             ["Play something in Spotify, a browser or any media app"] = "Spotify'da, tarayıcıda ya da herhangi bir medya uygulamasında bir şey çal",
             ["Unknown"] = "Bilinmiyor",
@@ -40,6 +47,13 @@ public static class Strings
         },
         ["de"] = new()
         {
+            ["Notch"] = "Notch",
+            ["Notch width"] = "Notch-Breite",
+            ["Notch height"] = "Notch-Höhe",
+            ["Show music in the notch"] = "Musik in der Notch zeigen",
+            ["Show timers in the notch"] = "Timer in der Notch zeigen",
+            ["While music plays or a timer runs, a small notch stays at the top. It hides while the playing app is in front."] = "Während Musik läuft oder ein Timer läuft, bleibt oben eine kleine Notch. Sie verschwindet, wenn die abspielende App im Vordergrund ist.",
+            ["Lyrics"] = "Liedtext",
             ["Nothing is playing"] = "Es wird nichts abgespielt",
             ["Play something in Spotify, a browser or any media app"] = "Spiele etwas in Spotify, einem Browser oder einer Medien-App ab",
             ["Unknown"] = "Unbekannt",
@@ -72,6 +86,13 @@ public static class Strings
         },
         ["es"] = new()
         {
+            ["Notch"] = "Muesca",
+            ["Notch width"] = "Ancho de la muesca",
+            ["Notch height"] = "Alto de la muesca",
+            ["Show music in the notch"] = "Mostrar la música en la muesca",
+            ["Show timers in the notch"] = "Mostrar temporizadores en la muesca",
+            ["While music plays or a timer runs, a small notch stays at the top. It hides while the playing app is in front."] = "Mientras suena música o corre un temporizador, queda una pequeña muesca arriba. Se oculta cuando la app que reproduce está delante.",
+            ["Lyrics"] = "Letra",
             ["Nothing is playing"] = "No se está reproduciendo nada",
             ["Play something in Spotify, a browser or any media app"] = "Reproduce algo en Spotify, un navegador o cualquier app multimedia",
             ["Unknown"] = "Desconocido",
@@ -104,6 +125,13 @@ public static class Strings
         },
         ["fr"] = new()
         {
+            ["Notch"] = "Encoche",
+            ["Notch width"] = "Largeur de l’encoche",
+            ["Notch height"] = "Hauteur de l’encoche",
+            ["Show music in the notch"] = "Afficher la musique dans l’encoche",
+            ["Show timers in the notch"] = "Afficher les minuteurs dans l’encoche",
+            ["While music plays or a timer runs, a small notch stays at the top. It hides while the playing app is in front."] = "Pendant la musique ou un minuteur, une petite encoche reste en haut. Elle se masque quand l’app qui joue est au premier plan.",
+            ["Lyrics"] = "Paroles",
             ["Nothing is playing"] = "Aucune lecture en cours",
             ["Play something in Spotify, a browser or any media app"] = "Lancez une lecture dans Spotify, un navigateur ou une app multimédia",
             ["Unknown"] = "Inconnu",

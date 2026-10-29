@@ -16,8 +16,8 @@ public sealed class FocusTab : IslandTab
     private const int LongBreakMinutes = 15;
     private const int SessionsBeforeLongBreak = 4;
     private const int MaxVisibleLaps = 4;
-    private const double DigitWidth = 34;
-    private const double ColonWidth = 16;
+    private const double DigitWidth = 29;
+    private const double ColonWidth = 14;
 
     private static readonly Dictionary<string, Dictionary<string, string>> Text = new()
     {
@@ -108,17 +108,26 @@ public sealed class FocusTab : IslandTab
         stopwatchModeButton = MakeModeButton(T("Stopwatch"), () => SetMode(true));
         secondaryButton = MakeButton(secondaryText, OnSecondary);
 
-        ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(150) });
+        ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(170) });
 
-        var switchPanel = new StackPanel { Spacing = 6, VerticalAlignment = VerticalAlignment.Center, Width = 104 };
+        var switchPanel = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Left,
+            Margin = new Thickness(0, 0, 0, 2),
+        };
         switchPanel.Children.Add(pomodoroModeButton);
         switchPanel.Children.Add(stopwatchModeButton);
+        SetRow(switchPanel, 0);
         SetColumn(switchPanel, 0);
+        SetColumnSpan(switchPanel, 2);
         Children.Add(switchPanel);
 
-        var center = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 2 };
+        var center = new StackPanel { VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center, Spacing = 0 };
         phaseLabel.HorizontalAlignment = HorizontalAlignment.Center;
         center.Children.Add(digitsRow);
         center.Children.Add(phaseLabel);
@@ -128,18 +137,21 @@ public sealed class FocusTab : IslandTab
             Orientation = Orientation.Horizontal,
             Spacing = 8,
             HorizontalAlignment = HorizontalAlignment.Center,
-            Margin = new Thickness(0, 8, 0, 0),
+            Margin = new Thickness(0, 6, 0, 0),
         };
         buttons.Children.Add(MakeButton(primaryText, OnPrimary));
         buttons.Children.Add(secondaryButton);
         center.Children.Add(buttons);
-        SetColumn(center, 1);
+        SetRow(center, 1);
+        SetColumn(center, 0);
         Children.Add(center);
 
         BuildPomodoroSide();
         BuildStopwatchSide();
-        SetColumn(pomodoroSide, 2);
-        SetColumn(stopwatchSide, 2);
+        SetRow(pomodoroSide, 1);
+        SetRow(stopwatchSide, 1);
+        SetColumn(pomodoroSide, 1);
+        SetColumn(stopwatchSide, 1);
         Children.Add(pomodoroSide);
         Children.Add(stopwatchSide);
 
@@ -148,9 +160,9 @@ public sealed class FocusTab : IslandTab
     }
 
     public override string Id => "focus";
-    public override string Glyph => "";
+    public override string Glyph => "timer";
     public override string Title => T("Focus");
-    public override double ContentHeight => 170;
+    public override double ContentHeight => 176;
 
     public override void OnShown()
     {
@@ -170,7 +182,7 @@ public sealed class FocusTab : IslandTab
         var button = new Button
         {
             Content = label,
-            Padding = new Thickness(14, 6, 14, 6),
+            Padding = new Thickness(14, 5, 14, 5),
             MinWidth = 76,
             CornerRadius = new CornerRadius(10),
             Background = Ui.White(30),
@@ -185,10 +197,9 @@ public sealed class FocusTab : IslandTab
         var button = new Button
         {
             Content = Ui.Text(title, 12, FontWeights.SemiBold),
-            Padding = new Thickness(12, 6, 12, 6),
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            HorizontalContentAlignment = HorizontalAlignment.Left,
-            CornerRadius = new CornerRadius(9),
+            Padding = new Thickness(14, 4, 14, 4),
+            MinHeight = 0,
+            CornerRadius = new CornerRadius(14),
             BorderThickness = new Thickness(0),
         };
         button.Click += (_, _) => action();
@@ -290,8 +301,10 @@ public sealed class FocusTab : IslandTab
 
     private void ApplyMode()
     {
-        pomodoroModeButton.Background = stopwatchMode ? Ui.White(0) : Ui.White(45);
-        stopwatchModeButton.Background = stopwatchMode ? Ui.White(45) : Ui.White(0);
+        pomodoroModeButton.Background = stopwatchMode ? Ui.White(0) : Ui.White(34);
+        stopwatchModeButton.Background = stopwatchMode ? Ui.White(34) : Ui.White(0);
+        ((TextBlock)pomodoroModeButton.Content).Foreground = Ui.White((byte)(stopwatchMode ? 140 : 255));
+        ((TextBlock)stopwatchModeButton.Content).Foreground = Ui.White((byte)(stopwatchMode ? 255 : 140));
         pomodoroSide.Visibility = stopwatchMode ? Visibility.Collapsed : Visibility.Visible;
         stopwatchSide.Visibility = stopwatchMode ? Visibility.Visible : Visibility.Collapsed;
     }
@@ -322,6 +335,7 @@ public sealed class FocusTab : IslandTab
         {
             StartPomodoro();
         }
+        PublishLive();
         Refresh();
     }
 
@@ -345,6 +359,7 @@ public sealed class FocusTab : IslandTab
             completedSessions = 0;
             PreparePhase(false);
         }
+        PublishLive();
         Refresh();
     }
 
@@ -353,6 +368,7 @@ public sealed class FocusTab : IslandTab
         if (pomodoroRemaining <= TimeSpan.Zero) pomodoroRemaining = pomodoroPhaseLength;
         pomodoroEnd = DateTime.UtcNow + pomodoroRemaining;
         pomodoroRunning = true;
+        FocusLive.PomodoroEndsUtc = pomodoroEnd;
         phaseTimer.Interval = pomodoroRemaining;
         phaseTimer.Start();
     }
@@ -370,8 +386,20 @@ public sealed class FocusTab : IslandTab
             completedSessions++;
             PreparePhase(true);
         }
+        PublishLive();
         Context.OpenTab?.Invoke(Id);
         if (shown) Refresh();
+    }
+
+    private void PublishLive()
+    {
+        FocusLive.PomodoroRunning = pomodoroRunning;
+        FocusLive.PomodoroOnBreak = onBreak;
+        FocusLive.PomodoroEndsUtc = pomodoroEnd;
+        FocusLive.StopwatchRunning = stopwatchRunning;
+        FocusLive.StopwatchStartUtc = stopwatchStart;
+        FocusLive.StopwatchAccumulated = stopwatchAccumulated;
+        FocusLive.Raise();
     }
 
     private TimeSpan StopwatchElapsed() =>
@@ -401,7 +429,7 @@ public sealed class FocusTab : IslandTab
             {
                 FontFamily = new FontFamily("Segoe UI Variable Display"),
                 FontWeight = FontWeights.Bold,
-                FontSize = 56,
+                FontSize = 46,
                 TextAlignment = TextAlignment.Center,
                 Foreground = Ui.White(),
             });
@@ -461,4 +489,21 @@ public sealed class FocusTab : IslandTab
             lapLines[i].Text = $"{T("Lap")} {lapIndex + 1}   {FormatLap(lapTotals[lapIndex] - previous)}";
         }
     }
+}
+
+public static class FocusLive
+{
+    public static bool PomodoroRunning { get; internal set; }
+    public static bool PomodoroOnBreak { get; internal set; }
+    public static DateTime PomodoroEndsUtc { get; internal set; }
+    public static bool StopwatchRunning { get; internal set; }
+    internal static DateTime StopwatchStartUtc { get; set; }
+    internal static TimeSpan StopwatchAccumulated { get; set; }
+
+    public static TimeSpan StopwatchElapsed =>
+        StopwatchRunning ? StopwatchAccumulated + (DateTime.UtcNow - StopwatchStartUtc) : StopwatchAccumulated;
+
+    public static event Action? Changed;
+
+    internal static void Raise() => Changed?.Invoke();
 }

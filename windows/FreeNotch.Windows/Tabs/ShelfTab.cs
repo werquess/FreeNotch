@@ -169,7 +169,7 @@ public sealed class ShelfTab : IslandTab
     }
 
     public override string Id => "shelf";
-    public override string Glyph => "";
+    public override string Glyph => "tray";
     public override string Title => T("Shelf");
     public override double ContentHeight => 150;
 

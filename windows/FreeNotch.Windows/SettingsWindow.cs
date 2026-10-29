@@ -50,6 +50,18 @@ public sealed class SettingsWindow : Window
             delay,
             Hint(Strings.L("Move your pointer to the top edge of the screen and the drop appears."))));
 
+        stack.Children.Add(Header(Strings.L("Notch")));
+        var width = new Slider { Header = Strings.L("Notch width"), Minimum = 140, Maximum = 300, StepFrequency = 2, Value = settings.NotchWidth };
+        width.ValueChanged += (_, e) => { settings.NotchWidth = (int)e.NewValue; settings.Save(); island.ApplyNotchSettings(); };
+        var height = new Slider { Header = Strings.L("Notch height"), Minimum = 26, Maximum = 40, StepFrequency = 1, Value = settings.NotchHeight };
+        height.ValueChanged += (_, e) => { settings.NotchHeight = (int)e.NewValue; settings.Save(); island.ApplyNotchSettings(); };
+        var music = new ToggleSwitch { Header = Strings.L("Show music in the notch"), IsOn = settings.ActivityMedia };
+        music.Toggled += (_, _) => { settings.ActivityMedia = music.IsOn; settings.Save(); island.ApplyNotchSettings(); };
+        var timers = new ToggleSwitch { Header = Strings.L("Show timers in the notch"), IsOn = settings.ActivityTimers };
+        timers.Toggled += (_, _) => { settings.ActivityTimers = timers.IsOn; settings.Save(); island.ApplyNotchSettings(); };
+        stack.Children.Add(Card(width, height, music, timers,
+            Hint(Strings.L("While music plays or a timer runs, a small notch stays at the top. It hides while the playing app is in front."))));
+
         stack.Children.Add(Header(Strings.L("Appearance")));
         var theme = new RadioButtons { Header = Strings.L("Theme") };
         theme.Items.Add(Strings.L("Smoke Glass"));

@@ -104,13 +104,13 @@ public sealed class ToolsTab : IslandTab
 
     private readonly Border mirrorFace;
     private readonly Grid mirrorHost;
-    private readonly FontIcon mirrorIcon;
+    private readonly GlyphIcon mirrorIcon;
     private readonly TextBlock mirrorState;
     private readonly Border awakeFace;
-    private readonly FontIcon awakeIcon;
+    private readonly GlyphIcon awakeIcon;
     private readonly TextBlock awakeState;
     private readonly Border pickFace;
-    private readonly FontIcon pickIcon;
+    private readonly GlyphIcon pickIcon;
     private readonly TextBlock pickState;
     private readonly ToolsColorPicker picker = new();
     private readonly DispatcherQueueTimer pickTimer;
@@ -128,16 +128,16 @@ public sealed class ToolsTab : IslandTab
     {
         Padding = new Thickness(22, 4, 22, 6);
 
-        mirrorIcon = Ui.Icon("", 24, 230);
+        mirrorIcon = Ui.Icon("camera", 24, 230);
         mirrorHost = new Grid();
         mirrorFace = MakeFace(mirrorIcon, mirrorHost);
         mirrorState = MakeState(T("Off"));
 
-        awakeIcon = Ui.Icon("", 24, 230);
+        awakeIcon = Ui.Icon("coffee", 24, 230);
         awakeFace = MakeFace(awakeIcon, null);
         awakeState = MakeState(T("Off"));
 
-        pickIcon = Ui.Icon("", 24, 230);
+        pickIcon = Ui.Icon("eyedropper", 24, 230);
         pickFace = MakeFace(pickIcon, null);
         pickState = MakeState(T("Pick a color"));
 
@@ -156,7 +156,7 @@ public sealed class ToolsTab : IslandTab
     }
 
     public override string Id => "tools";
-    public override string Glyph => "";
+    public override string Glyph => "squares-four";
     public override string Title => T("Tools");
     public override double ContentHeight => 170;
 
@@ -171,7 +171,7 @@ public sealed class ToolsTab : IslandTab
         StopCamera();
     }
 
-    private static Border MakeFace(FontIcon icon, Grid? host)
+    private static Border MakeFace(GlyphIcon icon, Grid? host)
     {
         var inner = new Grid();
         if (host != null) inner.Children.Add(host);

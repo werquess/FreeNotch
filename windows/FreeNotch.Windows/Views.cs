@@ -29,7 +29,7 @@ internal static class Ui
         MaxLines = 1,
     };
 
-    public static FontIcon Icon(string glyph, double size, byte alpha = 255) => new()
+    public static GlyphIcon Icon(string glyph, double size, byte alpha = 255) => new()
     {
         Glyph = glyph,
         FontFamily = Icons,
@@ -155,10 +155,10 @@ public sealed class PillContent : Grid
 
 public sealed class HudContent : Grid
 {
-    private readonly FontIcon icon = Ui.Icon("", 15);
+    private readonly GlyphIcon icon = Ui.Icon("", 15);
     private readonly Border fill = new() { Height = 5, CornerRadius = new CornerRadius(2.5), Background = Ui.White(), HorizontalAlignment = HorizontalAlignment.Left };
     private readonly Grid track = new() { Height = 5, VerticalAlignment = VerticalAlignment.Center };
-    private const double TrackWidth = 150;
+    private const double TrackWidth = 84;
 
     public HudContent()
     {
@@ -170,6 +170,7 @@ public sealed class HudContent : Grid
         track.Children.Add(new Border { CornerRadius = new CornerRadius(2.5), Background = Ui.White(48) });
         track.Children.Add(fill);
         track.Width = TrackWidth;
+        track.HorizontalAlignment = HorizontalAlignment.Right;
         SetColumn(icon, 0);
         SetColumn(track, 1);
         Children.Add(icon);
@@ -194,14 +195,17 @@ public sealed class MediaCard : Grid
     private readonly TextBlock remaining = Ui.Text("0:00", 11, FontWeights.SemiBold, 130);
     private readonly Grid bar = new() { Height = 14, Background = new SolidColorBrush(Colors.Transparent) };
     private readonly Border barFill = new() { Height = 4, CornerRadius = new CornerRadius(2), Background = Ui.White(235), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Center };
-    private readonly FontIcon playIcon = new() { Glyph = "", FontFamily = Ui.Icons, FontSize = 18, Foreground = new SolidColorBrush(Colors.Black) };
+    private readonly GlyphIcon playIcon = new() { Glyph = "", FontFamily = Ui.Icons, FontSize = 18, Foreground = new SolidColorBrush(Colors.Black) };
     private readonly Grid player = new();
     private readonly StackPanel empty = new() { Spacing = 6, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
     private readonly DispatcherQueueTimer timer;
 
-    public MediaCard(MediaService media)
+    private readonly Action? showLyrics;
+
+    public MediaCard(MediaService media, Action? showLyrics = null)
     {
         this.media = media;
+        this.showLyrics = showLyrics;
         Padding = new Thickness(22, 4, 24, 4);
         BuildPlayer();
         BuildEmpty();

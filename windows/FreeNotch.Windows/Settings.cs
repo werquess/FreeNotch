@@ -28,6 +28,10 @@ public sealed class Settings
     public bool ReplaceVolumeFlyout { get; set; } = true;
     public OpenMode OpenMode { get; set; } = OpenMode.Hover;
     public int HoverDelay { get; set; } = 350;
+    public int NotchWidth { get; set; } = 190;
+    public int NotchHeight { get; set; } = 32;
+    public bool ActivityMedia { get; set; } = true;
+    public bool ActivityTimers { get; set; } = true;
     public EdgePosition Edge { get; set; } = EdgePosition.Center;
 
     private static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FreeNotch");

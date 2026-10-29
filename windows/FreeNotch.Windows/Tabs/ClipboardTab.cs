@@ -112,6 +112,7 @@ public sealed class ClipboardTab : IslandTab
     private readonly StackPanel listPanel;
     private readonly ScrollViewer scroller;
     private readonly DispatcherQueueTimer copiedTimer;
+    private readonly ClipboardWatcher watcher;
     private bool shown;
     private bool holding;
     private bool capturing;
@@ -181,11 +182,11 @@ public sealed class ClipboardTab : IslandTab
 
         Load();
         Rebuild();
-        Clipboard.ContentChanged += OnClipboardChanged;
+        watcher = new ClipboardWatcher { Changed = OnClipboardChanged };
     }
 
     public override string Id => "clipboard";
-    public override string Glyph => "";
+    public override string Glyph => "clipboard-text";
     public override string Title => T("Clipboard");
     public override double ContentHeight => 220;
 
@@ -223,7 +224,7 @@ public sealed class ClipboardTab : IslandTab
         Context.HoldOpen?.Invoke(hold);
     }
 
-    private void OnClipboardChanged(object? sender, object e)
+    private void OnClipboardChanged()
     {
         Context.Queue.TryEnqueue(() => _ = CaptureAsync());
     }
@@ -255,7 +256,7 @@ public sealed class ClipboardTab : IslandTab
 
     private async Task CaptureOnceAsync()
     {
-        for (var attempt = 0; attempt < 4; attempt++)
+        for (var attempt = 0; attempt < 3; attempt++)
         {
             try
             {
@@ -271,7 +272,7 @@ public sealed class ClipboardTab : IslandTab
             }
             catch
             {
-                await Task.Delay(120);
+                await Task.Delay(80);
             }
         }
     }
