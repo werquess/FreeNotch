@@ -18,26 +18,38 @@ enum ScriptValue: Sendable {
 }
 
 enum AppleScriptRunner {
-    private static let queue = DispatchQueue(label: "island.applescript", qos: .userInitiated)
+    enum Lane {
+        case player
+        case browser
+    }
 
-    static func run(_ source: String, completion: (@MainActor @Sendable ([ScriptValue]) -> Void)? = nil) {
-        runDetailed(source) { values, _ in completion?(values) }
+    private static let playerQueue = DispatchQueue(label: "island.applescript.player", qos: .userInitiated)
+    private static let browserQueue = DispatchQueue(label: "island.applescript.browser", qos: .utility)
+    private static let cacheLock = NSLock()
+
+    static func run(_ source: String, lane: Lane = .player, completion: (@MainActor @Sendable ([ScriptValue]) -> Void)? = nil) {
+        runDetailed(source, lane: lane) { values, _ in completion?(values) }
     }
 
     private nonisolated(unsafe) static var compiled: [String: NSAppleScript] = [:]
 
     private static func script(for source: String) -> NSAppleScript? {
-        if let s = compiled[source] { return s }
+        cacheLock.lock()
+        let cached = compiled[source]
+        cacheLock.unlock()
+        if let cached { return cached }
         guard let s = NSAppleScript(source: source) else { return nil }
         var err: NSDictionary?
         guard s.compileAndReturnError(&err) else { return s }
+        cacheLock.lock()
         if compiled.count > 32 { compiled.removeAll() }
         compiled[source] = s
+        cacheLock.unlock()
         return s
     }
 
-    static func runDetailed(_ source: String, completion: @escaping @MainActor @Sendable ([ScriptValue], String?) -> Void) {
-        queue.async {
+    static func runDetailed(_ source: String, lane: Lane = .player, completion: @escaping @MainActor @Sendable ([ScriptValue], String?) -> Void) {
+        (lane == .player ? playerQueue : browserQueue).async {
             var error: NSDictionary?
             let result = script(for: source)?.executeAndReturnError(&error)
             let values: [ScriptValue] = (error == nil && result != nil) ? flatten(result!) : []

@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.0.8
+
+- Fixed play, pause and the current song not working while a browser had sleeping tabs open. A tab that doesn't answer is now skipped instead of blocking Spotify and Music controls.
+- Spotify and Music commands no longer wait behind browser checks, so controls respond right away
+
 ## 1.0.7
 
 - Liquid Glass theme rebuilt on real macOS glass. It follows the Liquid Glass setting in System Settings › Appearance and updates live when you move the slider.
