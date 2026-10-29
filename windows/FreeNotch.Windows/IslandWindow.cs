@@ -4,7 +4,6 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Input;
 using Windows.Graphics;
-using Windows.System;
 using WinRT.Interop;
 
 namespace FreeNotch;
@@ -85,7 +84,7 @@ public sealed class IslandWindow : Window
         view.PointerMoved += OnMoved;
         view.PointerReleased += OnReleased;
         view.PointerCaptureLost += (_, _) => pressed = dragging = false;
-        view.KeyDown += (_, e) => { if (e.Key == VirtualKey.Escape && phase == Phase.Card) GoTo(Phase.Pill); };
+        view.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Escape && phase == Phase.Card) GoTo(Phase.Pill); };
         Activated += (_, e) =>
         {
             if (e.WindowActivationState == WindowActivationState.Deactivated && phase == Phase.Card) GoTo(Phase.Pill);
