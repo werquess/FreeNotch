@@ -39,16 +39,20 @@ enum BrowserScripts {
         "(function(){var ms=Array.prototype.slice.call(document.querySelectorAll('video,audio'));var m=ms.filter(function(e){return !e.paused})[0]||ms[0];if(m){m.currentTime=\(seconds)}return 'ok'})()"
     }
 
-    static func scan(_ app: BrowserApp, allTabs: Bool) -> String {
+    static let tabTimeout = 2
+
+    static func scan(_ app: BrowserApp, allTabs: Bool, skip: Set<String> = []) -> String {
         let js = AppleScriptRunner.escape(probe)
         let domains = mediaDomains.map { "\"\($0)\"" }.joined(separator: ", ")
         let all = allTabs ? "true" : "false"
+        let skipped = skip.map { "\"\(AppleScriptRunner.escape($0))\"" }.joined(separator: ", ")
 
         if app == .safari {
             return """
             tell application "Safari"
                 set out to {}
                 set doms to {\(domains)}
+                set skips to {\(skipped)}
                 repeat with wi from 1 to count of windows
                     try
                         set w to window wi
@@ -56,6 +60,7 @@ enum BrowserScripts {
                         set ai to index of current tab of w
                         repeat with i from 1 to count of urls
                             set u to item i of urls as string
+                            set key to ("w" & wi & "t" & i)
                             set ok to (i = ai) or \(all)
                             if not ok then
                                 repeat with d in doms
@@ -65,12 +70,14 @@ enum BrowserScripts {
                                     end if
                                 end repeat
                             end if
-                            if ok then
+                            if ok and (skips does not contain key) then
                                 try
-                                    set r to do JavaScript "\(js)" in tab i of w
-                                    if r is not missing value and r is not "" then set end of out to ("w" & wi & "t" & i & "|" & r)
-                                on error msg
-                                    set end of out to ("!ERR|" & msg)
+                                    with timeout of \(tabTimeout) seconds
+                                        set r to do JavaScript "\(js)" in tab i of w
+                                    end timeout
+                                    if r is not missing value and r is not "" then set end of out to (key & "|" & r)
+                                on error msg number n
+                                    set end of out to ("!ERR|" & key & "|" & n & "|" & msg)
                                 end try
                             end if
                         end repeat
@@ -85,6 +92,7 @@ enum BrowserScripts {
         tell application "\(app.appName)"
             set out to {}
             set doms to {\(domains)}
+            set skips to {\(skipped)}
             repeat with w in windows
                 try
                     set urls to URL of tabs of w
@@ -95,6 +103,7 @@ enum BrowserScripts {
                     end try
                     repeat with i from 1 to count of urls
                         set u to item i of urls as string
+                        set key to (item i of ids as string)
                         set ok to (i = ai) or \(all)
                         if not ok then
                             repeat with d in doms
@@ -104,12 +113,14 @@ enum BrowserScripts {
                                 end if
                             end repeat
                         end if
-                        if ok then
+                        if ok and (skips does not contain key) then
                             try
-                                set r to execute (tab i of w) javascript "\(js)"
-                                if r is not missing value and r is not "" then set end of out to ((item i of ids as string) & "|" & r)
-                            on error msg
-                                set end of out to ("!ERR|" & msg)
+                                with timeout of \(tabTimeout) seconds
+                                    set r to execute (tab i of w) javascript "\(js)"
+                                end timeout
+                                if r is not missing value and r is not "" then set end of out to (key & "|" & r)
+                            on error msg number n
+                                set end of out to ("!ERR|" & key & "|" & n & "|" & msg)
                             end try
                         end if
                     end repeat
@@ -125,16 +136,18 @@ enum BrowserScripts {
         if app == .safari {
             let parts = tab.dropFirst().split(separator: "t")
             guard parts.count == 2 else { return "" }
-            return "tell application \"Safari\" to do JavaScript \"\(code)\" in tab \(parts[1]) of window \(parts[0])"
+            return "with timeout of 3 seconds\ntell application \"Safari\" to do JavaScript \"\(code)\" in tab \(parts[1]) of window \(parts[0])\nend timeout"
         }
         return """
-        tell application "\(app.appName)"
-            repeat with w in windows
-                repeat with t in tabs of w
-                    if (id of t as string) is "\(AppleScriptRunner.escape(tab))" then return execute t javascript "\(code)"
+        with timeout of 3 seconds
+            tell application "\(app.appName)"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if (id of t as string) is "\(AppleScriptRunner.escape(tab))" then return execute t javascript "\(code)"
+                    end repeat
                 end repeat
-            end repeat
-        end tell
+            end tell
+        end timeout
         """
     }
 }

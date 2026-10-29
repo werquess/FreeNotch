@@ -23,6 +23,7 @@ final class MediaController {
     @ObservationIgnored private var expectedPlaying: [String: (playing: Bool, until: Date)] = [:]
 
     @ObservationIgnored private var blockedBrowsers: [BrowserApp: Date] = [:]
+    @ObservationIgnored private var stuckTabs: [String: Date] = [:]
 
     var current: MediaSession? {
         if let selectedID, let s = sessions.first(where: { $0.id == selectedID }) { return s }
@@ -244,8 +245,13 @@ final class MediaController {
         for app in BrowserApp.allCases where app.isRunning && !scansInFlight.contains(app) {
             if !force, let since = blockedBrowsers[app], Date.now.timeIntervalSince(since) < 60 { continue }
             scansInFlight.insert(app)
-            let script = BrowserScripts.scan(app, allTabs: Prefs.bool(.browserScanAllTabs))
-            AppleScriptRunner.runDetailed(script) { [weak self] values, error in
+            stuckTabs = stuckTabs.filter { Date.now.timeIntervalSince($0.value) < 60 }
+            let skip = Set(stuckTabs.keys.compactMap { key -> String? in
+                let prefix = "\(app.rawValue)#"
+                return key.hasPrefix(prefix) ? String(key.dropFirst(prefix.count)) : nil
+            })
+            let script = BrowserScripts.scan(app, allTabs: Prefs.bool(.browserScanAllTabs), skip: skip)
+            AppleScriptRunner.runDetailed(script, lane: .browser) { [weak self] values, error in
                 guard let self else { return }
                 self.scansInFlight.remove(app)
                 self.applyScan(app, values: values.compactMap(\.string), error: error)
@@ -264,7 +270,12 @@ final class MediaController {
             let tab = String(line[..<sep])
             let payload = String(line[line.index(after: sep)...])
             if tab == "!ERR" {
-                if payload.localizedCaseInsensitiveContains("javascript") { jsBlocked = true }
+                let parts = payload.split(separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
+                if parts.count == 3, parts[1] == "-1712" {
+                    stuckTabs["\(app.rawValue)#\(parts[0])"] = .now
+                } else if payload.localizedCaseInsensitiveContains("javascript") {
+                    jsBlocked = true
+                }
                 continue
             }
             guard let data = payload.data(using: .utf8),
@@ -306,7 +317,7 @@ final class MediaController {
 
     private func runInTab(_ app: BrowserApp, tab: String, js: String) {
         guard app.isRunning else { return }
-        AppleScriptRunner.runDetailed(BrowserScripts.run(app, tab: tab, js: js)) { [weak self] _, _ in
+        AppleScriptRunner.runDetailed(BrowserScripts.run(app, tab: tab, js: js), lane: .browser) { [weak self] _, _ in
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { self?.scanBrowsers(force: true) }
         }
     }
