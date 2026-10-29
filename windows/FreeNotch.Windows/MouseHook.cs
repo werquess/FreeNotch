@@ -9,6 +9,8 @@ public sealed class MouseHook : IDisposable
 
     public Action<int, int>? Moved { get; set; }
 
+    public bool LeftDown { get; private set; }
+
     public MouseHook()
     {
         proc = Callback;
@@ -29,7 +31,9 @@ public sealed class MouseHook : IDisposable
 
     private IntPtr Callback(int nCode, IntPtr wParam, IntPtr lParam)
     {
-        if (nCode >= 0 && (int)wParam == Native.WM_MOUSEMOVE && Moved != null)
+        if (nCode >= 0 && (int)wParam == Native.WM_LBUTTONDOWN) LeftDown = true;
+        else if (nCode >= 0 && (int)wParam == Native.WM_LBUTTONUP_HOOK) LeftDown = false;
+        else if (nCode >= 0 && (int)wParam == Native.WM_MOUSEMOVE && Moved != null)
         {
             var data = Marshal.PtrToStructure<Native.MSLLHOOKSTRUCT>(lParam);
             Moved(data.pt.X, data.pt.Y);

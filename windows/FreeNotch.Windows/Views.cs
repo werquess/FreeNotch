@@ -202,7 +202,7 @@ public sealed class MediaCard : Grid
     public MediaCard(MediaService media)
     {
         this.media = media;
-        Padding = new Thickness(22, 20, 24, 18);
+        Padding = new Thickness(22, 4, 24, 4);
         BuildPlayer();
         BuildEmpty();
         Children.Add(player);

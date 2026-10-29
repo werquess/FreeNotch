@@ -13,7 +13,6 @@ public sealed class IslandWindow : Window
 
     private static readonly Vector2 Arc = new(210, 20);
     private static readonly Vector2 HudSize = new(260, 36);
-    private static readonly Vector2 CardSize = new(580, 184);
     private const float CardRadius = 34;
     private const float HudRadius = 18;
     private const float TopGap = 12;
@@ -29,7 +28,7 @@ public sealed class IslandWindow : Window
     private readonly MouseHook mouse = new();
     private readonly IslandView view = new();
     private readonly HudContent hud = new();
-    private readonly MediaCard card;
+    private readonly TabbedCard card;
     private readonly IntPtr hwnd;
     private readonly DispatcherQueue queue;
     private readonly DispatcherQueueTimer hudTimer;
@@ -41,20 +40,29 @@ public sealed class IslandWindow : Window
     private int anchorX;
     private double scale = 1;
     private bool pointerInside;
+    private bool held;
+    private Vector2 cardSize;
 
     public IslandWindow(Settings settings, MediaService media)
     {
         this.settings = settings;
         this.media = media;
         queue = DispatcherQueue;
-        card = new MediaCard(media);
-
         SystemBackdrop = new WinUIEx.TransparentTintBackdrop();
         view.RequestedTheme = ElementTheme.Dark;
         Content = view;
         Title = "FreeNotch";
 
         hwnd = WindowNative.GetWindowHandle(this);
+        var context = new TabContext(settings, media, queue, hwnd)
+        {
+            HoldOpen = on => held = on,
+            RequestClose = Close,
+            OpenTab = OpenTab,
+        };
+        card = new TabbedCard(context);
+        cardSize = card.CardSize;
+        card.Resized += OnCardResized;
         var presenter = OverlappedPresenter.Create();
         presenter.SetBorderAndTitleBar(false, false);
         presenter.IsResizable = false;
@@ -87,10 +95,9 @@ public sealed class IslandWindow : Window
         view.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Escape) Close(); };
         Activated += (_, e) =>
         {
-            if (e.WindowActivationState == WindowActivationState.Deactivated && phase == Phase.Card) Close();
+            if (e.WindowActivationState == WindowActivationState.Deactivated && phase == Phase.Card && !held) Close();
         };
 
-        media.Changed += () => { if (phase is Phase.Card or Phase.Opening) card.Update(); };
         keys.Handler = OnMediaKey;
         if (settings.ReplaceVolumeFlyout) keys.Start();
         mouse.Moved = OnMouse;
@@ -131,16 +138,55 @@ public sealed class IslandWindow : Window
         anchorX = screen.X + screen.Width / 2;
     }
 
-    private void PlaceTop(Vector2 room)
+    private Vector2 Room => new(TabbedCard.CardWidth * 1.06f + 24, TopGap + card.MaxHeight + 28);
+
+    private void PlaceRoom()
     {
+        var room = Room;
         var w = (int)Math.Ceiling(room.X * scale);
         var h = (int)Math.Ceiling(room.Y * scale);
-        AppWindow.MoveAndResize(new RectInt32(anchorX - w / 2, screen.Y, w, h));
+        var target = new RectInt32(anchorX - w / 2, screen.Y, w, h);
+        var pos = AppWindow.Position;
+        var size = AppWindow.Size;
+        if (pos.X != target.X || pos.Y != target.Y || size.Width != target.Width || size.Height != target.Height)
+        {
+            AppWindow.MoveAndResize(target);
+        }
+    }
+
+    private void Clip(Vector2 area)
+    {
+        var w = (int)Math.Ceiling(Room.X * scale);
+        var cw = (int)Math.Ceiling(area.X * scale);
+        var ch = (int)Math.Ceiling(area.Y * scale);
+        var x = (w - cw) / 2;
+        var region = Native.CreateRoundRectRgn(x, 0, x + cw + 1, ch + 1, 0, 0);
+        Native.SetWindowRgn(hwnd, region, true);
     }
 
     private void ShowWindow()
     {
-        if (!AppWindow.IsVisible) AppWindow.Show(false);
+        PlaceRoom();
+        if (!AppWindow.IsVisible)
+        {
+            AppWindow.Show(false);
+            Native.RemoveFrame(hwnd);
+        }
+    }
+
+    private void OnCardResized(Vector2 size)
+    {
+        cardSize = size;
+        if (phase is not (Phase.Card or Phase.Opening)) return;
+        view.Morph(size);
+        view.ResizeLayer(card, size);
+        Clip(Room);
+    }
+
+    private void OpenTab(string id)
+    {
+        card.Select(id);
+        if (phase is not (Phase.Card or Phase.Opening)) Open();
     }
 
     private void HideWindow()
@@ -159,7 +205,13 @@ public sealed class IslandWindow : Window
             case Phase.Hidden:
                 if (dy <= 1 && dy >= -2 && dx <= TriggerHalf * scale && x >= screen.X && x < screen.X + screen.Width)
                 {
-                    queue.TryEnqueue(() => { if (phase == Phase.Hidden) Peek(true); });
+                    var dragging = mouse.LeftDown;
+                    queue.TryEnqueue(() =>
+                    {
+                        if (phase != Phase.Hidden) return;
+                        if (dragging) OpenTab("shelf");
+                        else Peek(true);
+                    });
                 }
                 return;
             case Phase.Peek:
@@ -168,7 +220,7 @@ public sealed class IslandWindow : Window
             case Phase.Card:
             case Phase.Opening:
                 if (settings.OpenMode != OpenMode.Hover) return;
-                inside = dx <= (CardSize.X / 2 + CardSlack) * scale && dy <= (TopGap + CardSize.Y + CardSlack) * scale && dy >= -2;
+                inside = dx <= (cardSize.X / 2 + CardSlack) * scale && dy <= (TopGap + cardSize.Y + CardSlack) * scale && dy >= -2;
                 break;
             default:
                 return;
@@ -193,6 +245,7 @@ public sealed class IslandWindow : Window
     {
         if (pointerInside) return;
         if (phase == Phase.Peek) Retract();
+        else if (held) return;
         else if (phase == Phase.Card && settings.OpenMode == OpenMode.Hover) Close();
     }
 
@@ -203,8 +256,8 @@ public sealed class IslandWindow : Window
         phase = Phase.Peek;
         pointerInside = byPointer;
         hudTimer.Stop();
-        PlaceTop(new Vector2(PeekHalf * 2 + 20, PeekDepth + 8));
         ShowWindow();
+        Clip(new Vector2(PeekHalf * 2 + 20, PeekDepth + 8));
         var hover = byPointer && settings.OpenMode == OpenMode.Hover;
         view.Peek(Arc, hover ? settings.HoverDelay : 0);
         dwellTimer.Stop();
@@ -236,7 +289,6 @@ public sealed class IslandWindow : Window
             Locate();
             view.Reset();
             phase = Phase.Hidden;
-            PlaceTop(new Vector2(PeekHalf * 2 + 20, PeekDepth + 8));
             ShowWindow();
             view.Peek(Arc, 0);
         }
@@ -245,12 +297,12 @@ public sealed class IslandWindow : Window
         hudTimer.Stop();
         phase = Phase.Opening;
         pointerInside = true;
-        PlaceTop(new Vector2(CardSize.X * 1.06f + 24, TopGap + CardSize.Y + 24));
+        cardSize = card.CardSize;
+        Clip(Room);
         view.SetLayerTop(TopGap);
         card.SetActive(true);
-        card.Update();
-        view.ShowLayer(null, CardSize, 0);
-        view.Open(Arc, TopGap, CardSize, CardRadius, () =>
+        view.ShowLayer(null, cardSize, 0);
+        view.Open(Arc, TopGap, cardSize, CardRadius, () =>
         {
             if (phase != Phase.Opening) return;
             phase = Phase.Card;
@@ -260,7 +312,7 @@ public sealed class IslandWindow : Window
         var reveal = queue.CreateTimer();
         reveal.Interval = TimeSpan.FromMilliseconds(640);
         reveal.IsRepeating = false;
-        reveal.Tick += (_, _) => { if (phase is Phase.Opening or Phase.Card) view.ShowLayer(card, CardSize, 0); };
+        reveal.Tick += (_, _) => { if (phase is Phase.Opening or Phase.Card) view.ShowLayer(card, cardSize, 0); };
         reveal.Start();
     }
 
@@ -269,8 +321,9 @@ public sealed class IslandWindow : Window
         if (phase != Phase.Card) return;
         phase = Phase.Closing;
         leaveTimer.Stop();
+        held = false;
         card.SetActive(false);
-        view.ShowLayer(null, CardSize, 0);
+        view.ShowLayer(null, cardSize, 0);
         view.Close(Arc, TopGap, () =>
         {
             if (phase != Phase.Closing) return;
@@ -314,8 +367,8 @@ public sealed class IslandWindow : Window
             dwellTimer.Stop();
             leaveTimer.Stop();
             phase = Phase.Hud;
-            PlaceTop(new Vector2(HudSize.X * 1.1f + 20, HudSize.Y + 12));
             ShowWindow();
+            Clip(new Vector2(HudSize.X * 1.1f + 20, HudSize.Y + 12));
             view.NotchIn(HudSize, HudRadius);
             view.SetLayerTop(0);
             view.ShowLayer(hud, HudSize, 60);

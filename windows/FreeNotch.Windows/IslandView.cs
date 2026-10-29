@@ -43,7 +43,9 @@ public sealed class IslandView : Grid
         ellipse = compositor.CreateEllipseGeometry();
         ellipse.Radius = Vector2.Zero;
         var arcSprite = compositor.CreateSpriteShape(ellipse);
-        arcSprite.FillBrush = Spectrum();
+        arcSprite.FillBrush = GlassFill(true);
+        arcSprite.StrokeBrush = GlassRim();
+        arcSprite.StrokeThickness = 1;
         arcVisual = compositor.CreateShapeVisual();
         arcVisual.Shapes.Add(arcSprite);
 
@@ -54,7 +56,9 @@ public sealed class IslandView : Grid
         bodyVisual.Shapes.Add(sprite);
 
         var glowSprite = compositor.CreateSpriteShape(geometry);
-        glowSprite.FillBrush = Spectrum();
+        glowSprite.FillBrush = GlassFill(false);
+        glowSprite.StrokeBrush = GlassRim();
+        glowSprite.StrokeThickness = 1;
         glowVisual = compositor.CreateShapeVisual();
         glowVisual.Shapes.Add(glowSprite);
 
@@ -94,14 +98,27 @@ public sealed class IslandView : Grid
         ApplyTheme(IslandTheme.Smoke);
     }
 
-    private CompositionLinearGradientBrush Spectrum()
+    private CompositionLinearGradientBrush GlassFill(bool hanging)
     {
         var brush = compositor.CreateLinearGradientBrush();
         brush.StartPoint = new Vector2(0, 0);
-        brush.EndPoint = new Vector2(1, 0);
-        brush.ColorStops.Add(compositor.CreateColorGradientStop(0f, Color.FromArgb(255, 255, 77, 141)));
-        brush.ColorStops.Add(compositor.CreateColorGradientStop(0.5f, Color.FromArgb(255, 138, 92, 255)));
-        brush.ColorStops.Add(compositor.CreateColorGradientStop(1f, Color.FromArgb(255, 63, 169, 255)));
+        brush.EndPoint = new Vector2(0, 1);
+        var start = hanging ? 0.5f : 0f;
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(0f, Color.FromArgb(28, 235, 235, 245)));
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(start, Color.FromArgb(46, 200, 200, 214)));
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(start + (1f - start) * 0.45f, Color.FromArgb(150, 22, 22, 26)));
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(1f, Color.FromArgb(246, 2, 2, 4)));
+        return brush;
+    }
+
+    private CompositionLinearGradientBrush GlassRim()
+    {
+        var brush = compositor.CreateLinearGradientBrush();
+        brush.StartPoint = new Vector2(0, 0);
+        brush.EndPoint = new Vector2(1, 1);
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(0f, Color.FromArgb(150, 255, 255, 255)));
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(0.45f, Color.FromArgb(36, 255, 255, 255)));
+        brush.ColorStops.Add(compositor.CreateColorGradientStop(1f, Color.FromArgb(90, 255, 255, 255)));
         return brush;
     }
 
@@ -139,6 +156,21 @@ public sealed class IslandView : Grid
         layerHost.Children.Add(layer);
         layers.Add(layer);
         ElementCompositionPreview.GetElementVisual(layer).Opacity = 0;
+    }
+
+    public void ResizeLayer(FrameworkElement layer, Vector2 size)
+    {
+        layer.Width = size.X;
+        layer.Height = size.Y;
+    }
+
+    public void Morph(Vector2 size)
+    {
+        var spring = compositor.CreateSpringVector2Animation();
+        spring.FinalValue = size;
+        spring.DampingRatio = 0.82f;
+        spring.Period = TimeSpan.FromMilliseconds(58);
+        geometry.StartAnimation("Size", spring);
     }
 
     public void SetLayerTop(float top) => layerHost.Margin = new Thickness(0, top, 0, 0);
@@ -252,7 +284,7 @@ public sealed class IslandView : Grid
 
     public void Open(Vector2 arc, float landTop, Vector2 card, float radius, Action completed)
     {
-        var d = TimeSpan.FromMilliseconds(820);
+        var d = TimeSpan.FromMilliseconds(960);
         geometry.StopAnimation("Size");
         arcVisual.Opacity = 1;
         Run(d, () =>
@@ -326,7 +358,7 @@ public sealed class IslandView : Grid
 
     public void Close(Vector2 arc, float landTop, Action completed)
     {
-        var d = TimeSpan.FromMilliseconds(560);
+        var d = TimeSpan.FromMilliseconds(640);
         Run(d, () =>
         {
             var shrink = Ease(0.5f, 0f, 0.3f, 1f);

@@ -136,7 +136,10 @@ public static class Strings
         },
     };
 
-    private static readonly string Language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+    public static readonly string Language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+
+    public static string Pick(Dictionary<string, Dictionary<string, string>> table, string key) =>
+        table.TryGetValue(Language, out var local) && local.TryGetValue(key, out var value) ? value : key;
 
     public static string L(string key) =>
         Table.TryGetValue(Language, out var table) && table.TryGetValue(key, out var value) ? value : key;
