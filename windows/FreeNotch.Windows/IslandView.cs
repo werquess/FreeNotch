@@ -79,19 +79,7 @@ public sealed class IslandView : Grid
 
         arcBlur = compositor.CreateSpriteVisual();
         bodyBlur = compositor.CreateSpriteVisual();
-        try
-        {
-            var backdrop = compositor.CreateHostBackdropBrush();
-            arcBlur.Brush = backdrop;
-            bodyBlur.Brush = backdrop;
-            arcBlur.Clip = compositor.CreateGeometricClip(ellipse);
-            bodyBlur.Clip = compositor.CreateGeometricClip(geometry);
-            blurAvailable = true;
-        }
-        catch (Exception)
-        {
-            blurAvailable = false;
-        }
+        blurAvailable = false;
 
         root.Children.InsertAtTop(bodyBlur);
         root.Children.InsertAtTop(bodyVisual);
