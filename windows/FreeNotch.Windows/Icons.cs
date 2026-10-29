@@ -83,7 +83,7 @@ public static class Icons
 
 public sealed class GlyphIcon : Grid
 {
-    private readonly Path path = new() { Stretch = Stretch.None };
+    private readonly Microsoft.UI.Xaml.Shapes.Path path = new() { Stretch = Stretch.None };
     private readonly Viewbox box = new() { Stretch = Stretch.Uniform };
     private string glyph = "";
     private double fontSize = 14;
