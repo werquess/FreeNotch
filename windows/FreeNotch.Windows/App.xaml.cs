@@ -9,6 +9,7 @@ public partial class App : Application
     private Settings settings = new();
     private IslandWindow? island;
     private TrayIcon? tray;
+    private SettingsWindow? settingsWindow;
 
     public App()
     {
@@ -44,18 +45,20 @@ public partial class App : Application
         return new List<TrayIcon.Item>
         {
             new(w.IsOpen ? Strings.L("Close") : Strings.L("Open"), w.Toggle),
-            TrayIcon.Item.Separator,
-            new(Strings.L("Theme"), Children: new List<TrayIcon.Item>
-            {
-                new(Strings.L("Smoke Glass"), () => w.SetTheme(IslandTheme.Smoke), settings.Theme == IslandTheme.Smoke),
-                new(Strings.L("OLED Black"), () => w.SetTheme(IslandTheme.Oled), settings.Theme == IslandTheme.Oled),
-            }),
-            new(Strings.L("Replace the Windows volume pop-up"), () => w.SetReplaceVolume(!settings.ReplaceVolumeFlyout), settings.ReplaceVolumeFlyout),
-            new(Strings.L("Launch at login"), () => Settings.LaunchAtLogin = !Settings.LaunchAtLogin, Settings.LaunchAtLogin),
-            new(Strings.L("Reset position"), w.ResetPosition),
+            new(Strings.L("Settings…"), ShowSettings),
             TrayIcon.Item.Separator,
             new(Strings.L("Quit FreeNotch"), Quit),
         };
+    }
+
+    private void ShowSettings()
+    {
+        if (settingsWindow == null)
+        {
+            settingsWindow = new SettingsWindow(settings, island!);
+            settingsWindow.Closed += (_, _) => settingsWindow = null;
+        }
+        settingsWindow.Activate();
     }
 
     private void Quit()

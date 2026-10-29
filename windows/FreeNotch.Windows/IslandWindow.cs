@@ -2,7 +2,6 @@ using System.Numerics;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Input;
 using Windows.Graphics;
 using WinRT.Interop;
 
@@ -10,36 +9,38 @@ namespace FreeNotch;
 
 public sealed class IslandWindow : Window
 {
-    private enum Phase { Dropping, Pill, Hud, Card }
+    private enum Phase { Hidden, Peek, Opening, Card, Closing, Hud }
 
-    private static readonly Vector2 IdlePill = new(118, 30);
-    private static readonly Vector2 MediaPill = new(196, 32);
-    private static readonly Vector2 HudPill = new(250, 36);
+    private static readonly Vector2 Arc = new(210, 20);
+    private static readonly Vector2 HudSize = new(260, 36);
     private static readonly Vector2 CardSize = new(580, 184);
     private const float CardRadius = 34;
+    private const float HudRadius = 18;
     private const float TopGap = 12;
+    private const float TriggerHalf = 150;
+    private const float PeekHalf = 160;
+    private const float PeekDepth = 64;
+    private const float CardSlack = 28;
 
     private readonly Settings settings;
     private readonly MediaService media;
     private readonly VolumeService volume = new();
     private readonly MediaKeyHook keys = new();
+    private readonly MouseHook mouse = new();
     private readonly IslandView view = new();
-    private readonly PillContent pill = new();
     private readonly HudContent hud = new();
     private readonly MediaCard card;
     private readonly IntPtr hwnd;
     private readonly DispatcherQueue queue;
     private readonly DispatcherQueueTimer hudTimer;
-    private readonly DispatcherQueueTimer shrinkTimer;
+    private readonly DispatcherQueueTimer dwellTimer;
+    private readonly DispatcherQueueTimer leaveTimer;
 
-    private Phase phase = Phase.Dropping;
-    private Vector2 target = IdlePill;
-    private PointInt32 anchor;
-    private bool growsUp;
-    private bool pressed;
-    private bool dragging;
-    private Native.POINT pressCursor;
-    private PointInt32 pressWindow;
+    private Phase phase = Phase.Hidden;
+    private RectInt32 screen;
+    private int anchorX;
+    private double scale = 1;
+    private bool pointerInside;
 
     public IslandWindow(Settings settings, MediaService media)
     {
@@ -65,7 +66,6 @@ public sealed class IslandWindow : Window
         Native.SetToolWindow(hwnd);
         Native.RemoveFrame(hwnd);
 
-        view.AddLayer(pill);
         view.AddLayer(hud);
         view.AddLayer(card);
         view.ApplyTheme(settings.Theme);
@@ -73,132 +73,223 @@ public sealed class IslandWindow : Window
         hudTimer = queue.CreateTimer();
         hudTimer.Interval = TimeSpan.FromMilliseconds(1600);
         hudTimer.IsRepeating = false;
-        hudTimer.Tick += (_, _) => { if (phase == Phase.Hud) GoTo(Phase.Pill); };
+        hudTimer.Tick += (_, _) => HideHud();
 
-        shrinkTimer = queue.CreateTimer();
-        shrinkTimer.Interval = TimeSpan.FromMilliseconds(650);
-        shrinkTimer.IsRepeating = false;
-        shrinkTimer.Tick += (_, _) => { if (phase != Phase.Dropping) Place(target); };
+        dwellTimer = queue.CreateTimer();
+        dwellTimer.IsRepeating = false;
+        dwellTimer.Tick += (_, _) => { if (phase == Phase.Peek && pointerInside) Open(); };
 
-        view.PointerPressed += OnPressed;
-        view.PointerMoved += OnMoved;
-        view.PointerReleased += OnReleased;
-        view.PointerCaptureLost += (_, _) => pressed = dragging = false;
-        view.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Escape && phase == Phase.Card) GoTo(Phase.Pill); };
+        leaveTimer = queue.CreateTimer();
+        leaveTimer.IsRepeating = false;
+        leaveTimer.Tick += (_, _) => OnLeft();
+
+        view.PointerPressed += (_, _) => { if (phase is Phase.Peek or Phase.Hud) Open(); };
+        view.KeyDown += (_, e) => { if (e.Key == Windows.System.VirtualKey.Escape) Close(); };
         Activated += (_, e) =>
         {
-            if (e.WindowActivationState == WindowActivationState.Deactivated && phase == Phase.Card) GoTo(Phase.Pill);
+            if (e.WindowActivationState == WindowActivationState.Deactivated && phase == Phase.Card) Close();
         };
 
-        media.Changed += OnMediaChanged;
+        media.Changed += () => { if (phase is Phase.Card or Phase.Opening) card.Update(); };
         keys.Handler = OnMediaKey;
         if (settings.ReplaceVolumeFlyout) keys.Start();
+        mouse.Moved = OnMouse;
     }
 
-    private double Scale => Native.GetDpiForWindow(hwnd) / 96.0;
-
-    private Vector2 PillSize => media.HasSession && media.IsPlaying ? MediaPill : IdlePill;
-
-    public bool IsOpen => phase == Phase.Card;
+    public bool IsOpen => phase is Phase.Card or Phase.Opening;
 
     public void Start()
     {
-        LoadAnchor();
-        var display = DisplayArea.GetFromPoint(anchor, DisplayAreaFallback.Nearest);
-        var outer = display.OuterBounds;
-        var s = Scale;
-        var size = PillSize;
-        target = size;
-        var bottom = growsUp ? anchor.Y : anchor.Y + (int)Math.Ceiling(size.Y * s);
-        var width = (int)Math.Ceiling(size.X * 1.12 * s) + 4;
-        AppWindow.MoveAndResize(new RectInt32(anchor.X - width / 2, outer.Y, width, Math.Max(bottom - outer.Y, 40)));
-        view.SetGrowsUp(false);
-        view.SetTop(0);
-        AppWindow.Show(false);
-
-        var landTop = (float)((bottom - outer.Y) / s - size.Y);
-        var delay = queue.CreateTimer();
-        delay.Interval = TimeSpan.FromMilliseconds(180);
-        delay.IsRepeating = false;
-        delay.Tick += (_, _) => view.DropIn(landTop, size, FinishDrop);
-        delay.Start();
+        Locate();
+        mouse.Start();
+        Preview(500);
     }
 
-    private void FinishDrop()
+    private void Preview(int delayMs)
     {
-        phase = Phase.Pill;
-        Place(target);
-        view.SetGrowsUp(growsUp);
-        view.SetTop(0);
-        pill.Update(media);
-        view.ShowLayer(pill, target, 0);
-        var pillNow = PillSize;
-        if (pillNow != target) GoTo(Phase.Pill);
+        var intro = queue.CreateTimer();
+        intro.Interval = TimeSpan.FromMilliseconds(delayMs);
+        intro.IsRepeating = false;
+        intro.Tick += (_, _) =>
+        {
+            if (phase != Phase.Hidden) return;
+            Peek(false);
+            var back = queue.CreateTimer();
+            back.Interval = TimeSpan.FromMilliseconds(1500);
+            back.IsRepeating = false;
+            back.Tick += (_, _) => { if (phase == Phase.Peek && !pointerInside) Retract(); };
+            back.Start();
+        };
+        intro.Start();
+    }
+
+    private void Locate()
+    {
+        var display = DisplayArea.Primary;
+        screen = display.OuterBounds;
+        scale = Native.GetDpiForWindow(hwnd) / 96.0;
+        var side = (int)((CardSize.X / 2 + 24) * scale);
+        anchorX = settings.Edge switch
+        {
+            EdgePosition.Left => screen.X + side,
+            EdgePosition.Right => screen.X + screen.Width - side,
+            _ => screen.X + screen.Width / 2,
+        };
+    }
+
+    private void PlaceTop(Vector2 room)
+    {
+        var w = (int)Math.Ceiling(room.X * scale);
+        var h = (int)Math.Ceiling(room.Y * scale);
+        AppWindow.MoveAndResize(new RectInt32(anchorX - w / 2, screen.Y, w, h));
+    }
+
+    private void ShowWindow()
+    {
+        if (!AppWindow.IsVisible) AppWindow.Show(false);
+    }
+
+    private void HideWindow()
+    {
+        view.Reset();
+        AppWindow.Hide();
+    }
+
+    private void OnMouse(int x, int y)
+    {
+        var dx = Math.Abs(x - anchorX);
+        var dy = y - screen.Y;
+        bool inside;
+        switch (phase)
+        {
+            case Phase.Hidden:
+                if (dy <= 1 && dy >= -2 && dx <= TriggerHalf * scale && x >= screen.X && x < screen.X + screen.Width)
+                {
+                    queue.TryEnqueue(() => { if (phase == Phase.Hidden) Peek(true); });
+                }
+                return;
+            case Phase.Peek:
+                inside = dx <= PeekHalf * scale && dy <= PeekDepth * scale && dy >= -2;
+                break;
+            case Phase.Card:
+            case Phase.Opening:
+                if (settings.OpenMode != OpenMode.Hover) return;
+                inside = dx <= (CardSize.X / 2 + CardSlack) * scale && dy <= (TopGap + CardSize.Y + CardSlack) * scale && dy >= -2;
+                break;
+            default:
+                return;
+        }
+        if (inside == pointerInside) return;
+        pointerInside = inside;
+        queue.TryEnqueue(() =>
+        {
+            if (pointerInside)
+            {
+                leaveTimer.Stop();
+            }
+            else
+            {
+                leaveTimer.Interval = TimeSpan.FromMilliseconds(phase == Phase.Peek ? 220 : 450);
+                leaveTimer.Start();
+            }
+        });
+    }
+
+    private void OnLeft()
+    {
+        if (pointerInside) return;
+        if (phase == Phase.Peek) Retract();
+        else if (phase == Phase.Card && settings.OpenMode == OpenMode.Hover) Close();
+    }
+
+    private void Peek(bool byPointer)
+    {
+        if (phase != Phase.Hidden) return;
+        Locate();
+        phase = Phase.Peek;
+        pointerInside = byPointer;
+        hudTimer.Stop();
+        PlaceTop(new Vector2(PeekHalf * 2 + 20, PeekDepth + 8));
+        ShowWindow();
+        var hover = byPointer && settings.OpenMode == OpenMode.Hover;
+        view.Peek(Arc, hover ? settings.HoverDelay : 0);
+        dwellTimer.Stop();
+        if (hover)
+        {
+            dwellTimer.Interval = TimeSpan.FromMilliseconds(Math.Clamp(settings.HoverDelay, 0, 3000) + 380);
+            dwellTimer.Start();
+        }
+    }
+
+    private void Retract()
+    {
+        if (phase != Phase.Peek) return;
+        phase = Phase.Closing;
+        dwellTimer.Stop();
+        view.Retract(Arc, () =>
+        {
+            if (phase != Phase.Closing) return;
+            phase = Phase.Hidden;
+            HideWindow();
+        });
+    }
+
+    public void Open()
+    {
+        if (phase is Phase.Card or Phase.Opening) return;
+        if (phase is Phase.Hidden or Phase.Closing or Phase.Hud)
+        {
+            Locate();
+            view.Reset();
+            phase = Phase.Hidden;
+            PlaceTop(new Vector2(PeekHalf * 2 + 20, PeekDepth + 8));
+            ShowWindow();
+            view.Peek(Arc, 0);
+        }
+        dwellTimer.Stop();
+        leaveTimer.Stop();
+        hudTimer.Stop();
+        phase = Phase.Opening;
+        pointerInside = true;
+        PlaceTop(new Vector2(CardSize.X * 1.06f + 24, TopGap + CardSize.Y + 24));
+        view.SetLayerTop(TopGap);
+        card.SetActive(true);
+        card.Update();
+        view.ShowLayer(null, CardSize, 0);
+        view.Open(Arc, TopGap, CardSize, CardRadius, () =>
+        {
+            if (phase != Phase.Opening) return;
+            phase = Phase.Card;
+            Activate();
+            Native.SetForegroundWindow(hwnd);
+        });
+        var reveal = queue.CreateTimer();
+        reveal.Interval = TimeSpan.FromMilliseconds(640);
+        reveal.IsRepeating = false;
+        reveal.Tick += (_, _) => { if (phase is Phase.Opening or Phase.Card) view.ShowLayer(card, CardSize, 0); };
+        reveal.Start();
+    }
+
+    public void Close()
+    {
+        if (phase != Phase.Card) return;
+        phase = Phase.Closing;
+        leaveTimer.Stop();
+        card.SetActive(false);
+        view.ShowLayer(null, CardSize, 0);
+        view.Close(Arc, TopGap, () =>
+        {
+            if (phase != Phase.Closing) return;
+            phase = Phase.Hidden;
+            pointerInside = false;
+            HideWindow();
+        });
     }
 
     public void Toggle()
     {
-        if (phase == Phase.Dropping) return;
-        GoTo(phase == Phase.Card ? Phase.Pill : Phase.Card);
-    }
-
-    private void GoTo(Phase next)
-    {
-        var size = next switch
-        {
-            Phase.Card => CardSize,
-            Phase.Hud => HudPill,
-            _ => PillSize,
-        };
-        var radius = next == Phase.Card ? CardRadius : size.Y / 2;
-        var previous = target;
-        var changed = next != phase || size != target;
-        phase = next;
-        target = size;
-        if (!changed) return;
-
-        var room = Vector2.Max(previous, size) * 1.06f + new Vector2(8, 8);
-        Place(room);
-        shrinkTimer.Stop();
-        shrinkTimer.Start();
-
-        view.Morph(size, radius);
-        switch (next)
-        {
-            case Phase.Card:
-                card.SetActive(true);
-                card.Update();
-                view.ShowLayer(card, size, 120);
-                Activate();
-                Native.SetForegroundWindow(hwnd);
-                break;
-            case Phase.Hud:
-                card.SetActive(false);
-                view.ShowLayer(hud, size, 40);
-                break;
-            default:
-                card.SetActive(false);
-                pill.Update(media);
-                view.ShowLayer(pill, size, 60);
-                break;
-        }
-    }
-
-    private void Place(Vector2 size)
-    {
-        var s = Scale;
-        var w = (int)Math.Ceiling(size.X * s) + 2;
-        var h = (int)Math.Ceiling(size.Y * s) + 2;
-        var x = anchor.X - w / 2;
-        var y = growsUp ? anchor.Y - h : anchor.Y;
-        AppWindow.MoveAndResize(new RectInt32(x, y, w, h));
-    }
-
-    private void OnMediaChanged()
-    {
-        pill.Update(media);
-        if (phase == Phase.Card) card.Update();
-        if (phase == Phase.Pill && PillSize != target) GoTo(Phase.Pill);
+        if (phase == Phase.Card) Close();
+        else Open();
     }
 
     private bool OnMediaKey(uint vk, bool down)
@@ -215,14 +306,41 @@ public sealed class IslandWindow : Window
         {
             var (level, muted) = volume.Change(direction);
             hud.Update(level, muted);
-            if (phase is Phase.Pill or Phase.Hud)
-            {
-                GoTo(Phase.Hud);
-                hudTimer.Stop();
-                hudTimer.Start();
-            }
+            ShowHud();
         });
         return true;
+    }
+
+    private void ShowHud()
+    {
+        if (phase is Phase.Card or Phase.Opening) return;
+        if (phase != Phase.Hud)
+        {
+            Locate();
+            dwellTimer.Stop();
+            leaveTimer.Stop();
+            phase = Phase.Hud;
+            PlaceTop(new Vector2(HudSize.X * 1.1f + 20, HudSize.Y + 12));
+            ShowWindow();
+            view.NotchIn(HudSize, HudRadius);
+            view.SetLayerTop(0);
+            view.ShowLayer(hud, HudSize, 60);
+        }
+        hudTimer.Stop();
+        hudTimer.Start();
+    }
+
+    private void HideHud()
+    {
+        if (phase != Phase.Hud) return;
+        phase = Phase.Closing;
+        view.ShowLayer(null, HudSize, 0);
+        view.NotchOut(HudSize, HudRadius, () =>
+        {
+            if (phase != Phase.Closing) return;
+            phase = Phase.Hidden;
+            HideWindow();
+        });
     }
 
     public void SetReplaceVolume(bool on)
@@ -240,113 +358,30 @@ public sealed class IslandWindow : Window
         view.ApplyTheme(theme);
     }
 
-    public void ResetPosition()
+    public void SetOpenMode(OpenMode mode)
     {
-        settings.Positions.Remove(DisplayKey(DisplayArea.GetFromPoint(anchor, DisplayAreaFallback.Nearest)));
+        settings.OpenMode = mode;
         settings.Save();
-        LoadAnchor();
-        view.SetGrowsUp(growsUp);
-        Place(target);
+    }
+
+    public void SetHoverDelay(int ms)
+    {
+        settings.HoverDelay = ms;
+        settings.Save();
+    }
+
+    public void SetEdge(EdgePosition edge)
+    {
+        settings.Edge = edge;
+        settings.Save();
+        if (phase == Phase.Card) Close();
+        Locate();
+        Preview(phase == Phase.Hidden ? 50 : 700);
     }
 
     public void Shutdown()
     {
         keys.Dispose();
+        mouse.Dispose();
     }
-
-    private void OnPressed(object sender, PointerRoutedEventArgs e)
-    {
-        if (phase is not (Phase.Pill or Phase.Hud)) return;
-        pressed = true;
-        dragging = false;
-        Native.GetCursorPos(out pressCursor);
-        pressWindow = AppWindow.Position;
-        view.CapturePointer(e.Pointer);
-    }
-
-    private void OnMoved(object sender, PointerRoutedEventArgs e)
-    {
-        if (!pressed) return;
-        Native.GetCursorPos(out var now);
-        var dx = now.X - pressCursor.X;
-        var dy = now.Y - pressCursor.Y;
-        if (!dragging && Math.Abs(dx) + Math.Abs(dy) < 5) return;
-        dragging = true;
-        AppWindow.Move(new PointInt32(pressWindow.X + dx, pressWindow.Y + dy));
-    }
-
-    private void OnReleased(object sender, PointerRoutedEventArgs e)
-    {
-        if (!pressed) return;
-        pressed = false;
-        view.ReleasePointerCapture(e.Pointer);
-        if (dragging)
-        {
-            dragging = false;
-            FinishDrag();
-        }
-        else
-        {
-            GoTo(Phase.Card);
-        }
-    }
-
-    private void FinishDrag()
-    {
-        var pos = AppWindow.Position;
-        var size = AppWindow.Size;
-        var center = new PointInt32(pos.X + size.Width / 2, pos.Y + size.Height / 2);
-        var display = DisplayArea.GetFromPoint(center, DisplayAreaFallback.Nearest);
-        var work = display.WorkArea;
-        var outer = display.OuterBounds;
-        var s = Scale;
-
-        growsUp = center.Y > work.Y + work.Height / 2;
-        var x = center.X;
-        var y = growsUp ? pos.Y + size.Height : pos.Y;
-
-        var snap = 56 * s;
-        var half = size.Width / 2;
-        var xs = new[] { work.X + work.Width / 2, work.X + (int)(20 * s) + half, work.X + work.Width - (int)(20 * s) - half };
-        foreach (var candidate in xs)
-        {
-            if (Math.Abs(x - candidate) < snap) { x = candidate; break; }
-        }
-        var topY = outer.Y + (int)(TopGap * s);
-        var bottomY = work.Y + work.Height - (int)(TopGap * s);
-        if (!growsUp && Math.Abs(y - topY) < snap) y = topY;
-        if (growsUp && Math.Abs(y - bottomY) < snap) y = bottomY;
-        x = Math.Clamp(x, work.X + half, work.X + work.Width - half);
-        y = Math.Clamp(y, outer.Y, outer.Y + outer.Height);
-
-        anchor = new PointInt32(x, y);
-        settings.Positions[DisplayKey(display)] = new[]
-        {
-            (anchor.X - work.X) / (double)work.Width,
-            (anchor.Y - work.Y) / (double)work.Height,
-        };
-        settings.Save();
-        view.SetGrowsUp(growsUp);
-        Place(target);
-    }
-
-    private void LoadAnchor()
-    {
-        var display = DisplayArea.Primary;
-        var work = display.WorkArea;
-        var outer = display.OuterBounds;
-        var s = Native.GetDpiForWindow(hwnd) / 96.0;
-        if (settings.Positions.TryGetValue(DisplayKey(display), out var f) && f.Length == 2)
-        {
-            anchor = new PointInt32(work.X + (int)(f[0] * work.Width), work.Y + (int)(f[1] * work.Height));
-            growsUp = f[1] > 0.5;
-        }
-        else
-        {
-            anchor = new PointInt32(work.X + work.Width / 2, outer.Y + (int)(TopGap * s));
-            growsUp = false;
-        }
-    }
-
-    private static string DisplayKey(DisplayArea display) => display.DisplayId.Value.ToString();
 }

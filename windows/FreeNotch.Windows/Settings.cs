@@ -9,15 +9,30 @@ public enum IslandTheme
     Oled
 }
 
+public enum OpenMode
+{
+    Hover,
+    Click
+}
+
+public enum EdgePosition
+{
+    Left,
+    Center,
+    Right
+}
+
 public sealed class Settings
 {
     public IslandTheme Theme { get; set; } = IslandTheme.Smoke;
     public bool ReplaceVolumeFlyout { get; set; } = true;
-    public Dictionary<string, double[]> Positions { get; set; } = new();
+    public OpenMode OpenMode { get; set; } = OpenMode.Hover;
+    public int HoverDelay { get; set; } = 350;
+    public EdgePosition Edge { get; set; } = EdgePosition.Center;
 
     private static string Folder => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FreeNotch");
     private static string FilePath => Path.Combine(Folder, "settings.json");
-    private static readonly JsonSerializerOptions Options = new() { WriteIndented = true };
+    private static readonly JsonSerializerOptions Options = new() { WriteIndented = true, Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
 
     public static Settings Load()
     {
