@@ -120,7 +120,7 @@ public sealed class IslandWindow : Window
         var delay = queue.CreateTimer();
         delay.Interval = TimeSpan.FromMilliseconds(180);
         delay.IsRepeating = false;
-        delay.Tick += (_, _) => view.Drop(landTop, size, FinishDrop);
+        delay.Tick += (_, _) => view.DropIn(landTop, size, FinishDrop);
         delay.Start();
     }
 

@@ -136,7 +136,7 @@ public sealed class IslandView : Grid
         visual.StartAnimation("Opacity", anim);
     }
 
-    public void Drop(float landTop, Vector2 pill, Action completed)
+    public void DropIn(float landTop, Vector2 pill, Action completed)
     {
         props.InsertScalar("Radius", 999f);
         var batch = compositor.CreateScopedBatch(CompositionBatchTypes.Animation);
