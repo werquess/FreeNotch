@@ -527,6 +527,16 @@ private struct ActivitiesPane: View {
     @AppStorage(Prefs.Key.activityStopwatch.rawValue) private var stopwatch = true
     @AppStorage(Prefs.Key.activityCharging.rawValue) private var charging = true
     @AppStorage(Prefs.Key.activityBluetooth.rawValue) private var bluetooth = true
+    @AppStorage(Prefs.Key.activityCapture.rawValue) private var capture = true
+    @AppStorage(Prefs.Key.activityMeeting.rawValue) private var meeting = true
+    @AppStorage(Prefs.Key.activityScreenshot.rawValue) private var screenshot = true
+    @AppStorage(Prefs.Key.activityDownload.rawValue) private var download = true
+    @AppStorage(Prefs.Key.activityAudioOutput.rawValue) private var audioOutput = true
+    @AppStorage(Prefs.Key.activityBatteryLow.rawValue) private var batteryLow = true
+    @AppStorage(Prefs.Key.activityCapsLock.rawValue) private var capsLock = true
+    @AppStorage(Prefs.Key.activityThermal.rawValue) private var thermal = true
+    @AppStorage(Prefs.Key.activityNetwork.rawValue) private var network = true
+    @AppStorage(Prefs.Key.activityKeepAwake.rawValue) private var keepAwake = true
     @AppStorage(Prefs.Key.showHUD.rawValue) private var hud = true
     @AppStorage(Prefs.Key.hudVolume.rawValue) private var hudVolume = true
     @AppStorage(Prefs.Key.hudBrightness.rawValue) private var hudBrightness = true
@@ -544,6 +554,19 @@ private struct ActivitiesPane: View {
                 row("Stopwatch", "Elapsed time while running", "stopwatch", $stopwatch)
                 row("Charging", "When the charger is connected or removed", "bolt.fill", $charging)
                 row("AirPods and headphones", "When they connect or disconnect", "airpodspro", $bluetooth)
+            }
+
+            Section("Your Mac") {
+                row("Microphone and camera in use", "For 5 seconds when an app starts recording", "mic.fill", $capture)
+                row("Upcoming meeting", "A countdown 5 minutes before an event starts", "calendar", $meeting)
+                row("Screenshots", "A preview of each screenshot. Click it to put it on the shelf.", "camera.viewfinder", $screenshot)
+                row("Finished downloads", "New files in Downloads. Click to open.", "arrow.down.circle", $download)
+                row("Sound output", "When audio switches to another device", "hifispeaker.fill", $audioOutput)
+                row("Low battery", "At 20%, 10% and 5%", "battery.25percent", $batteryLow)
+                row("Caps Lock", "While Caps Lock is on", "capslock.fill", $capsLock)
+                row("Mac running hot", "When macOS slows down to cool off", "thermometer.high", $thermal)
+                row("Internet connection", "When you go offline and come back", "wifi", $network)
+                row("Keep Awake", "A small cup while Keep Awake is on", "cup.and.saucer.fill", $keepAwake)
             }
 
             Section("HUD") {

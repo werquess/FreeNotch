@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0
+
+- Ten new live activities in the closed notch, each with its own switch under Settings › Activities › Your Mac:
+  - Microphone and camera: a short notice when an app starts recording
+  - Upcoming meeting: a countdown five minutes before a calendar event, with a Join button for Zoom, Meet, Teams and other call links
+  - Caps Lock indicator
+  - Keep Awake indicator while your Mac is kept awake
+  - Offline and back online notices
+  - Running hot warning when your Mac is thermally throttled
+  - Screenshots: click the notice to drop the screenshot onto the shelf
+  - Finished downloads: click the notice to open the file
+  - Sound output changes, such as switching to AirPods, speakers or a display
+  - Low battery alerts at 20, 10 and 5 percent
+- Long device, file and meeting names now scroll smoothly instead of being cut off
+- Fixed Brave media not being detected in 1.0.8
+- The animation speed setting now applies to every notch animation
+
 ## 1.0.8
 
 - Fixed play, pause and the current song not working while a browser had sleeping tabs open. A tab that doesn't answer is now skipped instead of blocking Spotify and Music controls.

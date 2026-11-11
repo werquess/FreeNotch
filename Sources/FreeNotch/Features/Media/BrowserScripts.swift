@@ -60,7 +60,7 @@ enum BrowserScripts {
                         set ai to index of current tab of w
                         repeat with i from 1 to count of urls
                             set u to item i of urls as string
-                            set key to ("w" & wi & "t" & i)
+                            set tabKey to ("w" & wi & "t" & i)
                             set ok to (i = ai) or \(all)
                             if not ok then
                                 repeat with d in doms
@@ -70,14 +70,14 @@ enum BrowserScripts {
                                     end if
                                 end repeat
                             end if
-                            if ok and (skips does not contain key) then
+                            if ok and (skips does not contain tabKey) then
                                 try
                                     with timeout of \(tabTimeout) seconds
                                         set r to do JavaScript "\(js)" in tab i of w
                                     end timeout
-                                    if r is not missing value and r is not "" then set end of out to (key & "|" & r)
+                                    if r is not missing value and r is not "" then set end of out to (tabKey & "|" & r)
                                 on error msg number n
-                                    set end of out to ("!ERR|" & key & "|" & n & "|" & msg)
+                                    set end of out to ("!ERR|" & tabKey & "|" & n & "|" & msg)
                                 end try
                             end if
                         end repeat
@@ -103,7 +103,7 @@ enum BrowserScripts {
                     end try
                     repeat with i from 1 to count of urls
                         set u to item i of urls as string
-                        set key to (item i of ids as string)
+                        set tabKey to (item i of ids as string)
                         set ok to (i = ai) or \(all)
                         if not ok then
                             repeat with d in doms
@@ -113,14 +113,14 @@ enum BrowserScripts {
                                 end if
                             end repeat
                         end if
-                        if ok and (skips does not contain key) then
+                        if ok and (skips does not contain tabKey) then
                             try
                                 with timeout of \(tabTimeout) seconds
                                     set r to execute (tab i of w) javascript "\(js)"
                                 end timeout
-                                if r is not missing value and r is not "" then set end of out to (key & "|" & r)
+                                if r is not missing value and r is not "" then set end of out to (tabKey & "|" & r)
                             on error msg number n
-                                set end of out to ("!ERR|" & key & "|" & n & "|" & msg)
+                                set end of out to ("!ERR|" & tabKey & "|" & n & "|" & msg)
                             end try
                         end if
                     end repeat

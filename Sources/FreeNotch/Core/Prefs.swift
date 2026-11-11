@@ -27,6 +27,16 @@ enum Prefs {
         case activityCharging
         case activityBluetooth
         case activityStopwatch
+        case activityCapture
+        case activityMeeting
+        case activityScreenshot
+        case activityDownload
+        case activityAudioOutput
+        case activityBatteryLow
+        case activityCapsLock
+        case activityThermal
+        case activityNetwork
+        case activityKeepAwake
         case replaceSystemHUD
         case caffeineActive
         case focusMode
@@ -83,6 +93,16 @@ enum Prefs {
         Key.activityCharging.rawValue: true,
         Key.activityBluetooth.rawValue: true,
         Key.activityStopwatch.rawValue: true,
+        Key.activityCapture.rawValue: true,
+        Key.activityMeeting.rawValue: true,
+        Key.activityScreenshot.rawValue: true,
+        Key.activityDownload.rawValue: true,
+        Key.activityAudioOutput.rawValue: true,
+        Key.activityBatteryLow.rawValue: true,
+        Key.activityCapsLock.rawValue: true,
+        Key.activityThermal.rawValue: true,
+        Key.activityNetwork.rawValue: true,
+        Key.activityKeepAwake.rawValue: true,
         Key.replaceSystemHUD.rawValue: true,
         Key.caffeineActive.rawValue: false,
         Key.focusMode.rawValue: "pomodoro",

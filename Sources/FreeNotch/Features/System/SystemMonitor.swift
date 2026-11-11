@@ -22,6 +22,7 @@ final class SystemMonitor {
     private(set) var fans: [SensorReader.Fan] = []
 
     @ObservationIgnored var onPowerSourceChange: ((Bool, Int) -> Void)?
+    @ObservationIgnored var onLowBattery: ((Int) -> Void)?
 
     @ObservationIgnored private var runLoopSource: CFRunLoopSource?
     @ObservationIgnored private var sampler: DispatchSourceTimer?
@@ -74,6 +75,10 @@ final class SystemMonitor {
             let tte = desc[kIOPSTimeToEmptyKey] as? Int
 
             let pluggedChanged = didReadOnce && plugged != isPluggedIn
+            let previous = batteryLevel
+            if didReadOnce, !plugged, [20, 10, 5].contains(where: { level <= $0 && previous > $0 }) {
+                onLowBattery?(level)
+            }
             batteryLevel = level
             isCharging = charging
             isPluggedIn = plugged

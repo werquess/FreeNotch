@@ -47,7 +47,7 @@ final class IslandWindowController {
     private func wireEvents() {
         sensorView.onEnter = { [weak self] in self?.vm.sensorEntered() }
         sensorView.onExit = { [weak self] in self?.vm.sensorExited() }
-        sensorView.onClick = { [weak self] in self?.vm.expand() }
+        sensorView.onClick = { [weak self] in self?.vm.compactClicked() }
         sensorView.onDragEnter = { [weak self] in self?.vm.dragBegan() }
 
         hosting.onEnter = { [weak self] in self?.vm.panelEntered() }

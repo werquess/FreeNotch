@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct CompactActivityView: View {
     let activity: LiveActivity
@@ -10,6 +11,7 @@ struct CompactActivityView: View {
     @Environment(IslandViewModel.self) private var vm
     @Environment(Stopwatch.self) private var stopwatch
     @Environment(Appearance.self) private var appearance
+    @Environment(LiveSignals.self) private var signals
 
     var body: some View {
         VStack(spacing: 0) {
@@ -57,7 +59,7 @@ struct CompactActivityView: View {
         case .bluetooth(let name, let symbol, _):
             HStack(spacing: 6) {
                 Image(systemName: symbol).font(.system(size: 13, weight: .semibold))
-                Text(name).font(.system(size: 11, weight: .medium)).lineLimit(1)
+                MarqueeText(text: name, weight: .medium)
             }
             .foregroundStyle(.white)
         case .updateAvailable:
@@ -84,7 +86,77 @@ struct CompactActivityView: View {
                 .font(.system(size: 14, weight: .bold))
                 .foregroundStyle(.orange)
                 .symbolEffect(.bounce, options: .repeat(2), value: activity)
+        case .capture(let mic, let camera):
+            if camera {
+                privacyDot(.green, symbol: "video.fill")
+            } else if mic {
+                privacyDot(.orange, symbol: "mic.fill")
+            }
+        case .meeting(let title, _):
+            HStack(spacing: 6) {
+                Image(systemName: "calendar")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.red)
+                MarqueeText(text: title)
+            }
+        case .capsLock:
+            Image(systemName: "capslock.fill")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+        case .keepAwake:
+            Image(systemName: "cup.and.saucer.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color(red: 0.85, green: 0.62, blue: 0.38))
+        case .offline:
+            Image(systemName: "wifi.slash")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.red)
+        case .online:
+            Image(systemName: "wifi")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.green)
+                .symbolEffect(.variableColor.iterative, options: .nonRepeating, value: activity)
+        case .thermal:
+            Image(systemName: "thermometer.high")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.orange)
+        case .screenshot:
+            Group {
+                if let image = signals.screenshot {
+                    Image(nsImage: image)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)
+                        .frame(width: 30, height: 20)
+                        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                        .overlay(RoundedRectangle(cornerRadius: 4, style: .continuous).strokeBorder(.white.opacity(0.25), lineWidth: 0.5))
+                } else {
+                    Image(systemName: "camera.viewfinder")
+                        .font(.system(size: 13, weight: .semibold))
+                }
+            }
+        case .download(let name):
+            Image(nsImage: NSWorkspace.shared.icon(for: UTType(filenameExtension: (name as NSString).pathExtension) ?? .data))
+                .resizable()
+                .frame(width: 20, height: 20)
+        case .audioOutput(_, let symbol):
+            Image(systemName: symbol)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(.white)
+                .symbolEffect(.bounce, value: activity)
+        case .batteryLow:
+            Image(systemName: "battery.25percent")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundStyle(.red)
+                .symbolEffect(.pulse, options: .repeat(2), value: activity)
         }
+    }
+
+    private func privacyDot(_ color: Color, symbol: String) -> some View {
+        Image(systemName: symbol)
+            .font(.system(size: 8, weight: .bold))
+            .foregroundStyle(.black)
+            .frame(width: 16, height: 16)
+            .background(Circle().fill(color))
     }
 
     @ViewBuilder
@@ -128,10 +200,62 @@ struct CompactActivityView: View {
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(Color(red: 0.3, green: 0.6, blue: 1))
         case .timerDone(let title):
-            Text(title)
+            MarqueeText(text: title, alignment: .trailing)
+                .foregroundStyle(.orange)
+        case .capture(let mic, let camera):
+            if mic && camera {
+                privacyDot(.orange, symbol: "mic.fill")
+            } else {
+                Text(camera ? String(localized: "Camera") : String(localized: "Mic"))
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(camera ? .green : .orange)
+                    .lineLimit(1)
+            }
+        case .meeting(_, let start):
+            Group {
+                if start > .now {
+                    Text(timerInterval: Date.now...start, countsDown: true)
+                        .multilineTextAlignment(.trailing)
+                } else {
+                    Text(String(localized: "Now"))
+                }
+            }
+            .font(.system(size: 13, weight: .semibold, design: .rounded).monospacedDigit())
+            .foregroundStyle(.red)
+        case .capsLock:
+            Text(verbatim: "A")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+        case .keepAwake:
+            Image(systemName: "bolt.fill")
+                .font(.system(size: 10, weight: .bold))
+                .foregroundStyle(Color(red: 0.85, green: 0.62, blue: 0.38))
+        case .offline:
+            Text(String(localized: "Offline"))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.red)
+        case .online:
+            Text(String(localized: "Back online"))
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.green)
+                .lineLimit(1)
+        case .thermal:
+            Text(String(localized: "Running hot"))
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(.orange)
                 .lineLimit(1)
+        case .screenshot:
+            Text(String(localized: "Screenshot"))
+                .font(.system(size: 11, weight: .semibold))
+                .lineLimit(1)
+        case .download(let name):
+            MarqueeText(text: name, alignment: .trailing)
+        case .audioOutput(let name, _):
+            MarqueeText(text: name, alignment: .trailing)
+        case .batteryLow(let level):
+            Text(Double(level) / 100, format: .percent)
+                .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
+                .foregroundStyle(.red)
         }
     }
 

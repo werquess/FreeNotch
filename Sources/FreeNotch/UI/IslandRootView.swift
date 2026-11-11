@@ -19,6 +19,7 @@ struct IslandScene: View {
             .environment(env.calendar)
             .environment(env.appearance)
             .environment(env.updater)
+            .environment(env.signals)
             .foregroundStyle(.white)
             .preferredColorScheme(.dark)
     }
@@ -62,9 +63,9 @@ struct IslandRootView: View {
         .animation(Motion.forPresentation(p).speed(vm.animationSpeed), value: p.key)
         .animation(Motion.hover.speed(vm.animationSpeed), value: vm.isHovering)
         .animation(Motion.tab.speed(vm.animationSpeed), value: vm.selectedTab)
-        .animation(Motion.activity, value: vm.metrics)
-        .animation(Motion.activity, value: vm.prefsVersion)
-        .animation(Motion.activity, value: vm.showsLyricLine)
+        .animation(Motion.activity.speed(vm.animationSpeed), value: vm.metrics)
+        .animation(Motion.activity.speed(vm.animationSpeed), value: vm.prefsVersion)
+        .animation(Motion.activity.speed(vm.animationSpeed), value: vm.showsLyricLine)
     }
 
     @ViewBuilder

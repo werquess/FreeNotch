@@ -17,6 +17,7 @@ final class AppEnvironment {
     let caffeine = CaffeineService()
     let appearance = Appearance()
     let updater = UpdateChecker()
+    let signals = LiveSignals()
     let island: IslandViewModel
 
     let keyMonitor = MediaKeyMonitor()
@@ -24,9 +25,13 @@ final class AppEnvironment {
     private var trustPoll: DispatchSourceTimer?
     private var replaceHUDSetting = Prefs.bool(.replaceSystemHUD)
     private var lastBrightness = DisplayBrightness.get()
+    private var lastBluetoothEvent = Date.distantPast
+    private var screenshotURL: URL?
+    private var downloadURL: URL?
 
     init() {
-        island = IslandViewModel(media: media, pomodoro: pomodoro, lyrics: lyrics, stopwatch: stopwatch)
+        island = IslandViewModel(media: media, pomodoro: pomodoro, lyrics: lyrics, stopwatch: stopwatch,
+                                 signals: signals, calendar: calendar, caffeine: caffeine, system: system)
         wire()
         Self.current = self
     }
@@ -37,6 +42,7 @@ final class AppEnvironment {
         system.start()
         volume.start()
         if Prefs.bool(.activityBluetooth) { bluetooth.start() }
+        signals.start()
         DisplayBrightness.observeChanges { [weak self] level in self?.brightnessChanged(level) }
         updater.start()
 
@@ -66,6 +72,7 @@ final class AppEnvironment {
 
     private func preferencesChanged() {
         if Prefs.bool(.activityBluetooth) { bluetooth.start() } else { bluetooth.stop() }
+        signals.reloadPreferences()
         let replace = Prefs.bool(.replaceSystemHUD)
         guard replace != replaceHUDSetting else { return }
         replaceHUDSetting = replace
@@ -115,8 +122,69 @@ final class AppEnvironment {
         }
 
         bluetooth.onEvent = { [weak self] name, symbol, connected in
+            self?.lastBluetoothEvent = .now
             guard Prefs.bool(.activityBluetooth) else { return }
-            self?.island.showTransient(.bluetooth(name: name, symbol: symbol, connected: connected), duration: 2.8)
+            self?.island.showTransient(.bluetooth(name: name, symbol: symbol, connected: connected), duration: Self.readingTime(name, base: 2.8))
+        }
+
+        system.onLowBattery = { [weak self] level in
+            guard Prefs.bool(.activityBatteryLow) else { return }
+            NSSound(named: "Funk")?.play()
+            self?.island.showTransient(.batteryLow(level), duration: 4)
+        }
+
+        signals.onOutputChange = { [weak self] name, symbol in
+            guard let self, Prefs.bool(.activityAudioOutput) else { return }
+            guard Date.now.timeIntervalSince(self.lastBluetoothEvent) > 4 else { return }
+            self.island.showTransient(.audioOutput(name: name, symbol: symbol), duration: Self.readingTime(name, base: 2.6))
+        }
+
+        signals.onCaptureStart = { [weak self] mic, camera in
+            guard let self, Prefs.bool(.activityCapture), self.island.mode == .compact else { return }
+            self.island.showTransient(.capture(mic: mic, camera: camera), duration: 5)
+        }
+
+        signals.onOffline = { [weak self] in
+            guard Prefs.bool(.activityNetwork) else { return }
+            self?.island.showTransient(.offline, duration: 5)
+        }
+
+        signals.onReconnect = { [weak self] in
+            guard Prefs.bool(.activityNetwork) else { return }
+            self?.island.showTransient(.online, duration: 2.4)
+        }
+
+        signals.onScreenshot = { [weak self] url in
+            guard let self, Prefs.bool(.activityScreenshot) else { return }
+            self.screenshotURL = url
+            self.island.showTransient(.screenshot(url.path), duration: 5)
+        }
+
+        signals.onDownload = { [weak self] url in
+            guard let self, Prefs.bool(.activityDownload) else { return }
+            self.downloadURL = url
+            self.island.showTransient(.download(url.lastPathComponent), duration: Self.readingTime(url.lastPathComponent, base: 5))
+        }
+
+        island.activityTap = { [weak self] activity in
+            guard let self else { return false }
+            switch activity {
+            case .screenshot:
+                guard let url = self.screenshotURL else { return false }
+                _ = self.shelf.add([url])
+                self.island.clearTransient()
+                self.island.expand(tab: .shelf)
+                return true
+            case .download:
+                guard let url = self.downloadURL else { return false }
+                NSWorkspace.shared.open(url)
+                return true
+            case .meeting:
+                self.island.expand(tab: .focus)
+                return true
+            default:
+                return false
+            }
         }
 
         pomodoro.onPhaseComplete = { [weak self] phase in
@@ -130,6 +198,10 @@ final class AppEnvironment {
             guard Prefs.bool(.trackPeek), Prefs.bool(.activityMedia), !session.isInView else { return }
             self.island.showTransient(.trackPeek, duration: 2.8)
         }
+    }
+
+    private static func readingTime(_ text: String, base: Double) -> Double {
+        min(8, max(base, 1.6 + Double(text.count) * 0.16))
     }
 
     private func handleKey(_ key: MediaKeyMonitor.Key, fine: Bool) -> Bool {

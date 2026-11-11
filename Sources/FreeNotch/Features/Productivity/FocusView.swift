@@ -212,6 +212,15 @@ private struct CalendarCard: View {
                                     .font(.system(size: 10))
                                     .foregroundStyle(.white.opacity(0.5))
                             }
+                            Spacer(minLength: 4)
+                            if let link = event.link {
+                                Button(String(localized: "Join")) { NSWorkspace.shared.open(link) }
+                                    .buttonStyle(.plain)
+                                    .font(.system(size: 11, weight: .semibold))
+                                    .foregroundStyle(.black)
+                                    .padding(.horizontal, 10).padding(.vertical, 4)
+                                    .background(Capsule().fill(.green))
+                            }
                         }
                     }
                 }

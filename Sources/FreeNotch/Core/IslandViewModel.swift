@@ -53,19 +53,41 @@ enum LiveActivity: Equatable {
     case stopwatch
     case colorCopied(String)
     case updateAvailable(String)
+    case capture(mic: Bool, camera: Bool)
+    case meeting(title: String, start: Date)
+    case capsLock
+    case keepAwake
+    case offline
+    case online
+    case thermal
+    case screenshot(String)
+    case download(String)
+    case audioOutput(name: String, symbol: String)
+    case batteryLow(Int)
 
     var sideWidth: CGFloat {
         switch self {
         case .media: 40
         case .timer: 62
         case .charging: 56
-        case .bluetooth: 92
+        case .bluetooth: 112
         case .timerDone: 92
         case .trackPeek: 120
         case .shelfAdded: 78
         case .stopwatch: 66
         case .colorCopied: 84
         case .updateAvailable: 92
+        case .capture(let mic, let camera): mic && camera ? 22 : 40
+        case .meeting: 104
+        case .capsLock: 30
+        case .keepAwake: 30
+        case .offline: 84
+        case .online: 84
+        case .thermal: 84
+        case .screenshot: 104
+        case .download: 120
+        case .audioOutput: 112
+        case .batteryLow: 56
         }
     }
 
@@ -85,6 +107,17 @@ enum LiveActivity: Equatable {
         case .stopwatch: "stopwatch"
         case .colorCopied: "colorCopied"
         case .updateAvailable: "update"
+        case .capture: "capture"
+        case .meeting: "meeting"
+        case .capsLock: "capsLock"
+        case .keepAwake: "keepAwake"
+        case .offline: "offline"
+        case .online: "online"
+        case .thermal: "thermal"
+        case .screenshot: "screenshot"
+        case .download: "download"
+        case .audioOutput: "audioOutput"
+        case .batteryLow: "batteryLow"
         }
     }
 
@@ -174,6 +207,11 @@ final class IslandViewModel {
     @ObservationIgnored private let pomodoro: PomodoroTimer
     @ObservationIgnored private let lyrics: LyricsService
     @ObservationIgnored private let stopwatch: Stopwatch
+    @ObservationIgnored private let signals: LiveSignals
+    @ObservationIgnored private let calendar: CalendarService
+    @ObservationIgnored private let caffeine: CaffeineService
+    @ObservationIgnored private let system: SystemMonitor
+    @ObservationIgnored var activityTap: ((LiveActivity) -> Bool)?
     @ObservationIgnored private var hoverTask: Task<Void, Never>?
     @ObservationIgnored private var collapseTask: Task<Void, Never>?
     @ObservationIgnored private var hudTask: Task<Void, Never>?
@@ -181,11 +219,16 @@ final class IslandViewModel {
     @ObservationIgnored private var isPointerInside = false
     @ObservationIgnored private var layoutSignature = Prefs.layoutSignature
 
-    init(media: MediaController, pomodoro: PomodoroTimer, lyrics: LyricsService, stopwatch: Stopwatch) {
+    init(media: MediaController, pomodoro: PomodoroTimer, lyrics: LyricsService, stopwatch: Stopwatch,
+         signals: LiveSignals, calendar: CalendarService, caffeine: CaffeineService, system: SystemMonitor) {
         self.media = media
         self.pomodoro = pomodoro
         self.lyrics = lyrics
         self.stopwatch = stopwatch
+        self.signals = signals
+        self.calendar = calendar
+        self.caffeine = caffeine
+        self.system = system
         selectedTab = IslandTab(rawValue: Prefs.string(.defaultTab) ?? "") ?? .media
         NotificationCenter.default.addObserver(forName: UserDefaults.didChangeNotification, object: nil, queue: .main) { [weak self] _ in
             MainActor.assumeIsolated { self?.preferencesChanged() }
@@ -210,9 +253,17 @@ final class IslandViewModel {
         if isDragActive { return .dropZone }
         if let hud { return .hud(hud) }
         if let transient { return .activity(transient) }
+        if let meeting = calendar.upcoming, Prefs.bool(.activityMeeting) {
+            return .activity(.meeting(title: meeting.title, start: meeting.start))
+        }
         if pomodoro.isRunning, Prefs.bool(.activityTimer) { return .activity(.timer) }
         if stopwatch.isRunning, Prefs.bool(.activityStopwatch) { return .activity(.stopwatch) }
+        if signals.capsLock, Prefs.bool(.activityCapsLock) { return .activity(.capsLock) }
         if media.isPlayingOutOfView, Prefs.bool(.activityMedia) { return .activity(.media) }
+        if system.thermalState.rawValue >= ProcessInfo.ThermalState.serious.rawValue, Prefs.bool(.activityThermal) {
+            return .activity(.thermal)
+        }
+        if caffeine.isActive, Prefs.bool(.activityKeepAwake) { return .activity(.keepAwake) }
         return .idle
     }
 
@@ -288,6 +339,19 @@ final class IslandViewModel {
     }
 
     func toggle() { mode == .expanded ? collapse() : expand() }
+
+    func compactClicked() {
+        if mode == .compact, case .activity(let activity) = presentation, activityTap?(activity) == true {
+            if transient == activity { clearTransient() }
+            return
+        }
+        expand()
+    }
+
+    func clearTransient() {
+        transientTask?.cancel()
+        transient = nil
+    }
 
     func sensorEntered() {
         guard mode == .compact else { return }
